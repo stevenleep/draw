@@ -1,10 +1,10 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
 
 export class RectangleTool extends ToolPlugin {
   constructor() {
     super(
       'rectangle',
-      'rectangle',
+      'rectangle' as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
@@ -32,8 +32,20 @@ export class RectangleTool extends ToolPlugin {
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
     
-    // 预览绘制
-    this.renderPreview(startObject, context);
+    // 直接渲染，不需要调用renderPreview，因为DrawingEngine已经处理了预览设置
+    if (startObject.endPoint) {
+      const width = startObject.endPoint.x - startObject.startPoint.x;
+      const height = startObject.endPoint.y - startObject.startPoint.y;
+      
+      // 填充
+      if (startObject.options.hasFill && startObject.options.fillColor) {
+        context.ctx.fillStyle = startObject.options.fillColor;
+        context.ctx.fillRect(startObject.startPoint.x, startObject.startPoint.y, width, height);
+      }
+      
+      // 描边
+      context.ctx.strokeRect(startObject.startPoint.x, startObject.startPoint.y, width, height);
+    }
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

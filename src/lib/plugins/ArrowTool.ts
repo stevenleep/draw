@@ -1,10 +1,10 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
 
 export class ArrowTool extends ToolPlugin {
   constructor() {
     super(
       'arrow',
-      'arrow',
+      'arrow' as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M2 16L16 2M16 2L16 9M16 2L9 2" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
@@ -32,8 +32,17 @@ export class ArrowTool extends ToolPlugin {
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
     
-    // 预览绘制
-    this.renderPreview(startObject, context);
+    // 直接绘制箭头，不需要调用renderPreview
+    if (startObject.endPoint) {
+      // 绘制箭头线
+      context.ctx.beginPath();
+      context.ctx.moveTo(startObject.startPoint.x, startObject.startPoint.y);
+      context.ctx.lineTo(startObject.endPoint.x, startObject.endPoint.y);
+      context.ctx.stroke();
+
+      // 绘制箭头头部
+      this.drawArrowHead(startObject.startPoint, startObject.endPoint, context);
+    }
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

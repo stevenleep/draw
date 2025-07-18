@@ -1,10 +1,10 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
 
 export class PenTool extends ToolPlugin {
   constructor() {
     super(
       'pen',
-      'pen',
+      'pen' as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M2 14L14 2M14 2L11 2M14 2L14 5" stroke="currentColor" stroke-width="1.5" fill="none"/>
         <circle cx="2" cy="14" r="1" fill="currentColor"/>
@@ -18,23 +18,14 @@ export class PenTool extends ToolPlugin {
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
-    // 设置绘制样式
-    context.ctx.strokeStyle = context.options.color;
-    context.ctx.lineWidth = context.options.strokeWidth;
-    context.ctx.lineCap = 'round';
-    context.ctx.lineJoin = 'round';
-    context.ctx.globalAlpha = context.options.opacity;
-
-    // 开始路径
-    context.ctx.beginPath();
-    context.ctx.moveTo(point.x, point.y);
-
-    // 画一个起始点
+    // 注意：不要在这里重复设置样式，DrawingEngine已经设置过了
+    
+    // 画一个起始点，让单击也能看到效果
     context.ctx.beginPath();
     context.ctx.arc(point.x, point.y, context.options.strokeWidth / 2, 0, Math.PI * 2);
     context.ctx.fill();
 
-    // 重新开始路径用于连续线条
+    // 开始新的路径用于连续线条
     context.ctx.beginPath();
     context.ctx.moveTo(point.x, point.y);
 
@@ -57,14 +48,8 @@ export class PenTool extends ToolPlugin {
     // 添加点到路径
     startObject.points.push({ ...point });
 
-    // 设置样式
-    context.ctx.strokeStyle = startObject.options.color;
-    context.ctx.lineWidth = startObject.options.strokeWidth;
-    context.ctx.lineCap = 'round';
-    context.ctx.lineJoin = 'round';
-    context.ctx.globalAlpha = startObject.options.opacity;
-
-    // 绘制到当前点
+    // 注意：不要重复设置样式，DrawingEngine已经设置过了
+    // 直接绘制到当前点
     context.ctx.lineTo(point.x, point.y);
     context.ctx.stroke();
   }

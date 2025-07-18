@@ -1,30 +1,17 @@
+import type { DrawingObject as EngineDrawingObject, DrawingOptions as EngineDrawingOptions, DrawingMode } from '../DrawingEngine';
+
+export type { DrawingMode };
+
 export interface Point {
   x: number;
   y: number;
 }
 
-export interface DrawingOptions {
-  color: string;
-  strokeColor?: string;
-  strokeWidth: number;
-  fontSize: number;
-  roughness: number;
-  opacity: number;
-  fillColor?: string;
-  hasFill: boolean;
-  fontFamily?: string;
-  fontWeight?: string;
-  textAlign?: 'left' | 'center' | 'right';
-  lineDash?: number[];
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-}
+export type DrawingOptions = EngineDrawingOptions;
 
 export interface DrawingObject {
   id: string;
-  type: string;
+  type: DrawingMode; // 使用DrawingMode而不是string
   startPoint: Point;
   endPoint?: Point;
   points?: Point[];
@@ -51,11 +38,11 @@ export interface ToolContext {
 
 export abstract class ToolPlugin {
   public readonly name: string;
-  public readonly type: string;
+  public readonly type: DrawingMode; // 改为DrawingMode类型
   public readonly icon: string;
   public readonly title: string;
 
-  constructor(name: string, type: string, icon: string, title: string) {
+  constructor(name: string, type: DrawingMode, icon: string, title: string) {
     this.name = name;
     this.type = type;
     this.icon = icon;

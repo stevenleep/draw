@@ -1,3 +1,6 @@
+import { ToolManager } from './plugins/ToolManager';
+import type { ToolPlugin } from './plugins/ToolPlugin';
+
 export type DrawingMode = 'select' | 'pen' | 'arrow' | 'rectangle' | 'circle' | 'text' | 'hand-drawn' | 'line' | 'eraser' | 'highlighter' | 'star' | 'triangle';
 
 export interface DrawingOptions {
@@ -110,9 +113,12 @@ export class DrawingEngine {
   private historyStep: number = -1;
   private maxHistorySize: number = 50;
   
+  // 插件系统相关
+  private toolManager: ToolManager;
+  private currentDrawingObject: DrawingObject | null = null; // 当前正在绘制的对象
+  
   // 模式变化回调
   private onModeChange?: (mode: DrawingMode) => void;
-  private onObjectEdit?: (object: DrawingObject, position: { x: number; y: number }) => void;
 
   constructor(canvasElement: HTMLCanvasElement) {
     console.log('🎨 Creating SIMPLE native canvas drawing engine');
@@ -123,6 +129,9 @@ export class DrawingEngine {
       throw new Error('Could not get 2D context from canvas');
     }
     this.ctx = context;
+    
+    // 初始化插件系统
+    this.toolManager = new ToolManager();
     
     // 初始化干净的画布
     this.clear();
@@ -156,7 +165,9 @@ export class DrawingEngine {
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
-    console.log('🔤 Key down event:', e.key);
+    console.log("=====================================")
+    console.log('🔤 Key down event:', e);
+    console.log("=====================================")
     
     // 如果正在编辑文本，处理文本输入
     if (this.isEditingText) {
@@ -339,11 +350,6 @@ export class DrawingEngine {
       this.selectedObject = clickedObject;
       console.log('🎯 Selected object:', clickedObject.type, clickedObject.id);
       
-      // 显示属性面板
-      if (this.onObjectEdit) {
-        this.onObjectEdit(clickedObject, { x: e.clientX, y: e.clientY });
-      }
-      
       // 准备拖拽
       this.isDragging = true;
       this.dragOffset = {
@@ -399,17 +405,23 @@ export class DrawingEngine {
   }
 
   private handleDoubleClick(e: MouseEvent): void {
+    console.log('🖱️ Double click detected!');
     e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
+    console.log('🎯 Double click position:', { x, y });
+    
     const clickedObject = this.getObjectAtPoint(x, y);
+    console.log('🔍 Clicked object:', clickedObject);
     
     if (clickedObject && clickedObject.type === 'text') {
+      console.log('📝 Starting text editing for:', clickedObject);
       // 编辑现有文字
       this.startTextEditing(clickedObject);
     } else if (this.mode === 'select') {
+      console.log('➕ Creating new text at point');
       // Figma风格：在选择模式下双击空白处创建文字
       this.createTextAtPoint(x, y);
     }
@@ -474,6 +486,61 @@ export class DrawingEngine {
     
     console.log(`🎨 开始${this.mode}模式绘画，坐标: (${x}, ${y})`);
     
+    // 使用插件系统处理开始绘制
+    const tool = this.toolManager.getTool(this.mode);
+    if (tool) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: this.options,
+        generateId: () => this.generateId(),
+        redrawCanvas: () => this.redrawCanvas(),
+        saveState: () => this.saveState()
+      };
+      
+      const startObject = tool.startDrawing({ x, y }, context);
+      if (startObject) {
+        this.currentDrawingObject = startObject;
+        
+        // 对于不需要拖拽的工具（如文本），立即完成绘制
+        if (!tool.requiresDrag) {
+          console.log(`🔤 Tool ${tool.name} doesn't require drag, finishing immediately`);
+          
+          const finishedObject = tool.finishDrawing({ x, y }, startObject, context);
+          if (finishedObject) {
+            this.drawingObjects.push(finishedObject);
+            
+            // 检查是否是需要立即编辑的文本对象（Figma风格）
+            if ((finishedObject as any).__shouldStartEditing && finishedObject.type === 'text') {
+              console.log('🔤 Starting immediate text editing (Figma style)');
+              delete (finishedObject as any).__shouldStartEditing; // 清理临时标记
+              
+              // 延迟一点点来确保对象已经完全创建
+              setTimeout(() => {
+                this.startTextEditing(finishedObject);
+              }, 10);
+            }
+            
+            this.saveState(); // 保存状态
+            this.redrawCanvas();
+          }
+          
+          this.currentDrawingObject = null;
+          this.isDrawing = false;
+          this.startPoint = null;
+          return;
+        }
+      }
+      
+      // 注意：即使对于不需要拖拽的工具，我们仍然保持isDrawing=true
+      // 直到鼠标抬起时才完成绘制
+    } else {
+      // 后备方案：处理不在插件系统中的工具
+      this.handleLegacyStartDrawing(x, y);
+    }
+  }
+
+  private handleLegacyStartDrawing(x: number, y: number): void {
     if (this.mode === 'pen' || this.mode === 'eraser' || this.mode === 'highlighter') {
       // 画笔模式：开始连续线条
       this.ctx.beginPath();
@@ -513,6 +580,42 @@ export class DrawingEngine {
       return;
     }
     
+    // 使用插件系统处理继续绘制
+    const tool = this.toolManager.getTool(this.mode);
+    if (tool && this.currentDrawingObject) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: this.options,
+        generateId: () => this.generateId(),
+        redrawCanvas: () => this.redrawCanvas(),
+        saveState: () => this.saveState()
+      };
+      
+      // 对于需要拖拽的工具，需要先恢复画布状态做预览
+      if (tool.requiresDrag && this.previewImageData) {
+        this.ctx.putImageData(this.previewImageData, 0, 0);
+        
+        // 设置预览样式（稍微半透明）
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.strokeStyle = this.options.color;
+        this.ctx.fillStyle = this.options.color;
+        this.ctx.lineWidth = this.options.strokeWidth;
+      }
+      
+      tool.continueDrawing({ x, y }, this.currentDrawingObject, context);
+      
+      // 恢复正常透明度
+      if (tool.requiresDrag) {
+        this.ctx.globalAlpha = 1.0;
+      }
+    } else {
+      // 后备方案：处理不在插件系统中的工具
+      this.handleLegacyContinueDrawing(x, y);
+    }
+  }
+
+  private handleLegacyContinueDrawing(x: number, y: number): void {
     if (this.mode === 'pen' || this.mode === 'hand-drawn') {
       // 画笔模式：绘制连续线条
       this.ctx.lineTo(x, y);
@@ -558,11 +661,57 @@ export class DrawingEngine {
       return;
     }
     
-    if (!this.isDrawing || !this.startPoint) return;
+    if (!this.isDrawing) return;
     
     this.isDrawing = false;
     
-    if (this.mode !== 'pen' && this.mode !== 'text' && this.mode !== 'eraser' && this.mode !== 'highlighter' && this.mode !== 'hand-drawn' && this.currentPoint) {
+    // 使用插件系统处理完成绘制
+    const tool = this.toolManager.getTool(this.mode);
+    if (tool && this.currentDrawingObject && this.currentPoint) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: this.options,
+        generateId: () => this.generateId(),
+        redrawCanvas: () => this.redrawCanvas(),
+        saveState: () => this.saveState()
+      };
+      
+      const finishedObject = tool.finishDrawing(this.currentPoint, this.currentDrawingObject, context);
+      if (finishedObject) {
+        this.drawingObjects.push(finishedObject);
+        
+        // 检查是否是需要立即编辑的文本对象（Figma风格）
+        if ((finishedObject as any).__shouldStartEditing && finishedObject.type === 'text') {
+          console.log('🔤 Starting immediate text editing (Figma style)');
+          delete (finishedObject as any).__shouldStartEditing; // 清理临时标记
+          
+          // 延迟一点点来确保对象已经完全创建
+          setTimeout(() => {
+            this.startTextEditing(finishedObject);
+          }, 10);
+        }
+        
+        this.saveState(); // 保存状态
+        this.redrawCanvas();
+      }
+      
+      this.currentDrawingObject = null;
+    } else if (this.startPoint && this.currentPoint) {
+      // 后备方案：处理不在插件系统中的工具
+      this.handleLegacyStopDrawing();
+    }
+    
+    this.startPoint = null;
+    this.currentPoint = null;
+    this.previewImageData = null;
+    console.log('✅ Drawing completed');
+  }
+
+  private handleLegacyStopDrawing(): void {
+    if (!this.startPoint || !this.currentPoint) return;
+    
+    if (this.mode !== 'pen' && this.mode !== 'text' && this.mode !== 'eraser' && this.mode !== 'highlighter' && this.mode !== 'hand-drawn') {
       // 为矩形、圆形、箭头、线条、星形、三角形等创建对象并保存
       const obj = this.createDrawingObject(this.startPoint, this.currentPoint);
       if (obj) {
@@ -570,7 +719,7 @@ export class DrawingEngine {
         this.saveState(); // 保存状态
         this.redrawCanvas();
       }
-    } else if ((this.mode === 'pen' || this.mode === 'eraser' || this.mode === 'highlighter' || this.mode === 'hand-drawn') && this.currentPoint) {
+    } else if ((this.mode === 'pen' || this.mode === 'eraser' || this.mode === 'highlighter' || this.mode === 'hand-drawn')) {
       // 为画笔、橡皮擦、荧光笔、手绘创建对象
       const obj = this.createPenObject();
       if (obj) {
@@ -578,11 +727,6 @@ export class DrawingEngine {
         this.saveState(); // 保存状态
       }
     }
-    
-    this.startPoint = null;
-    this.currentPoint = null;
-    this.previewImageData = null;
-    console.log('✅ Drawing completed');
   }
 
   private createDrawingObject(start: {x: number, y: number}, end: {x: number, y: number}): DrawingObject | null {
@@ -706,44 +850,53 @@ export class DrawingEngine {
     this.ctx.fillStyle = this.options.color;
     this.ctx.lineWidth = this.options.strokeWidth;
     
-    switch (this.mode) {
-      case 'rectangle':
-        const width = end.x - start.x;
-        const height = end.y - start.y;
-        this.ctx.strokeRect(start.x, start.y, width, height);
-        break;
-        
-      case 'circle':
-        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-        this.ctx.beginPath();
-        this.ctx.arc(start.x, start.y, radius, 0, Math.PI * 2);
-        this.ctx.stroke();
-        break;
-        
-      case 'arrow':
-        this.drawArrow(start.x, start.y, end.x, end.y);
-        break;
-        
-      case 'line':
-        this.ctx.beginPath();
-        this.ctx.moveTo(start.x, start.y);
-        this.ctx.lineTo(end.x, end.y);
-        this.ctx.stroke();
-        break;
-        
-      case 'star':
-        const starRadius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-        this.drawStar(start.x, start.y, starRadius, 5);
-        break;
-        
-      case 'triangle':
-        this.drawTriangle(start, end);
-        break;
-        
-      case 'hand-drawn':
-        // 手绘风格矩形
-        this.drawHandDrawnRect(start, end);
-        break;
+    // 使用插件系统进行预览绘制
+    const tool = this.toolManager.getTool(this.mode);
+    if (tool) {
+      // 创建临时对象用于预览
+      const tempObj: DrawingObject = {
+        id: 'temp-preview',
+        type: this.mode,
+        startPoint: start,
+        endPoint: end,
+        options: { ...this.options },
+        bounds: { x: 0, y: 0, width: 0, height: 0 }
+      };
+      
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: this.options,
+        generateId: () => 'temp',
+        redrawCanvas: () => {},
+        saveState: () => {}
+      };
+      
+      tool.render(tempObj, context);
+    } else {
+      // 后备方案：处理不在插件系统中的工具
+      switch (this.mode) {
+        case 'line':
+          this.ctx.beginPath();
+          this.ctx.moveTo(start.x, start.y);
+          this.ctx.lineTo(end.x, end.y);
+          this.ctx.stroke();
+          break;
+          
+        case 'star':
+          const starRadius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+          this.drawStar(start.x, start.y, starRadius, 5);
+          break;
+          
+        case 'triangle':
+          this.drawTriangle(start, end);
+          break;
+          
+        case 'hand-drawn':
+          // 手绘风格矩形
+          this.drawHandDrawnRect(start, end);
+          break;
+      }
     }
   }
 
@@ -968,6 +1121,21 @@ export class DrawingEngine {
   private isPointInObject(x: number, y: number, obj: DrawingObject): boolean {
     const margin = Math.max(8, obj.options.strokeWidth); // 增加选择容差
     
+    // 优先使用插件系统的hitTest
+    const tool = this.toolManager.getTool(obj.type as DrawingMode);
+    if (tool) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: obj.options,
+        generateId: () => this.generateId(),
+        redrawCanvas: () => this.redrawCanvas(),
+        saveState: () => this.saveState()
+      };
+      return tool.hitTest({ x, y }, obj, margin);
+    }
+    
+    // 后备方案：使用旧的检测逻辑
     switch (obj.type) {
       case 'rectangle':
       case 'hand-drawn':
@@ -1058,15 +1226,47 @@ export class DrawingEngine {
   public redrawCanvas(): void {
     // 清空画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    
     // 重新绘制所有对象
     this.drawingObjects.forEach(obj => {
       this.drawObject(obj);
     });
-    
+    // 编辑状态下渲染占位符和光标
+    this.renderTextEditingOverlay();
     // 如果有选中的对象，绘制变换控制手柄
     if (this.selectedObject) {
       this.drawTransformHandles();
+    }
+  }
+
+  // 编辑状态下渲染占位符和光标
+  private renderTextEditingOverlay(): void {
+    if (this.isEditingText && this.selectedObject && this.selectedObject.type === 'text') {
+      const opts = this.selectedObject.options;
+      const x = this.selectedObject.startPoint.x;
+      const y = this.selectedObject.startPoint.y;
+      this.ctx.save();
+      this.ctx.font = `${opts.fontWeight || 'normal'} ${opts.fontSize}px ${opts.fontFamily || 'Arial'}`;
+      this.ctx.textAlign = opts.textAlign || 'left';
+      this.ctx.textBaseline = 'middle';
+      // 占位符
+      if (!this.editingText || !this.editingText.trim()) {
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.fillStyle = '#888888';
+        this.ctx.fillText('请输入文字…', x, y);
+      } else {
+        // 光标
+        const textBefore = this.editingText.slice(0, this.textCursorPosition);
+        const cursorX = x + this.ctx.measureText(textBefore).width;
+        this.ctx.globalAlpha = 1;
+        this.ctx.strokeStyle = opts.color || '#222';
+        if (this.textCursorVisible) {
+          this.ctx.beginPath();
+          this.ctx.moveTo(cursorX, y - opts.fontSize / 2);
+          this.ctx.lineTo(cursorX, y + opts.fontSize / 2);
+          this.ctx.stroke();
+        }
+      }
+      this.ctx.restore();
     }
   }
 
@@ -1128,36 +1328,37 @@ export class DrawingEngine {
       this.ctx.shadowOffsetY = 0;
     }
     
+    // 使用插件系统渲染对象
+    const tool = this.toolManager.getTool(obj.type as DrawingMode);
+    if (tool) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.canvas,
+        options: obj.options,
+        generateId: () => '',
+        redrawCanvas: () => this.redrawCanvas(),
+        saveState: () => this.saveState()
+      };
+      
+      tool.render(obj, context);
+    } else {
+      // 后备方案：处理不在插件系统中的工具
+      this.renderLegacyObject(obj);
+    }
+    
+    // 重置样式
+    this.ctx.globalAlpha = 1;
+    this.ctx.setLineDash([]);
+    this.ctx.shadowColor = 'transparent';
+    this.ctx.shadowBlur = 0;
+    this.ctx.shadowOffsetX = 0;
+    this.ctx.shadowOffsetY = 0;
+    
+    this.ctx.restore();
+  }
+
+  private renderLegacyObject(obj: DrawingObject): void {
     switch (obj.type) {
-      case 'rectangle':
-        if (obj.endPoint) {
-          const width = obj.endPoint.x - obj.startPoint.x;
-          const height = obj.endPoint.y - obj.startPoint.y;
-          if (obj.options.hasFill) {
-            this.ctx.fillRect(obj.startPoint.x, obj.startPoint.y, width, height);
-          }
-          this.ctx.strokeRect(obj.startPoint.x, obj.startPoint.y, width, height);
-        }
-        break;
-      
-      case 'circle':
-        if (obj.endPoint) {
-          const radius = Math.sqrt((obj.endPoint.x - obj.startPoint.x) ** 2 + (obj.endPoint.y - obj.startPoint.y) ** 2);
-          this.ctx.beginPath();
-          this.ctx.arc(obj.startPoint.x, obj.startPoint.y, radius, 0, Math.PI * 2);
-          if (obj.options.hasFill) {
-            this.ctx.fill();
-          }
-          this.ctx.stroke();
-        }
-        break;
-      
-      case 'arrow':
-        if (obj.endPoint) {
-          this.drawArrow(obj.startPoint.x, obj.startPoint.y, obj.endPoint.x, obj.endPoint.y);
-        }
-        break;
-      
       case 'line':
         if (obj.endPoint) {
           this.ctx.beginPath();
@@ -1180,45 +1381,6 @@ export class DrawingEngine {
         }
         break;
       
-      case 'text':
-        this.ctx.font = `${obj.options.fontWeight || 'normal'} ${obj.options.fontSize}px ${obj.options.fontFamily || 'Arial'}`;
-        this.ctx.textAlign = obj.options.textAlign || 'center';
-        this.ctx.textBaseline = 'middle';
-        
-        // 如果正在编辑这个文本对象
-        if (this.isEditingText && this.selectedObject === obj) {
-          // 绘制编辑背景
-          this.drawTextEditingBackground(obj);
-          
-          // 显示编辑中的文本
-          const editText = this.editingText || '点击编辑文字';
-          this.ctx.fillText(editText, obj.startPoint.x, obj.startPoint.y);
-          
-          // 绘制光标
-          if (this.textCursorVisible) {
-            this.drawTextCursor(obj);
-          }
-        } else {
-          // 正常显示文本
-          const displayText = (obj.text && obj.text.trim()) ? obj.text : '点击编辑文字';
-          if (!obj.text || !obj.text.trim()) {
-            // 空文本用灰色显示占位符
-            this.ctx.save();
-            this.ctx.globalAlpha = 0.5;
-            this.ctx.fillStyle = '#999999';
-            this.ctx.fillText(displayText, obj.startPoint.x, obj.startPoint.y);
-            this.ctx.restore();
-          } else {
-            this.ctx.fillText(displayText, obj.startPoint.x, obj.startPoint.y);
-          }
-        }
-        
-        // 恢复默认设置
-        this.ctx.textAlign = 'start';
-        this.ctx.textBaseline = 'alphabetic';
-        break;
-      
-      case 'pen':
       case 'hand-drawn':
       case 'eraser':
       case 'highlighter':
@@ -1232,16 +1394,6 @@ export class DrawingEngine {
         }
         break;
     }
-    
-    // 重置样式
-    this.ctx.globalAlpha = 1;
-    this.ctx.setLineDash([]);
-    this.ctx.shadowColor = 'transparent';
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowOffsetX = 0;
-    this.ctx.shadowOffsetY = 0;
-    
-    this.ctx.restore();
   }
 
   private drawSelectionBox(obj: DrawingObject): void {
@@ -1266,10 +1418,6 @@ export class DrawingEngine {
 
   setModeChangeCallback(callback: (mode: DrawingMode) => void): void {
     this.onModeChange = callback;
-  }
-
-  setObjectEditCallback(callback: (object: DrawingObject, position: { x: number; y: number }) => void): void {
-    this.onObjectEdit = callback;
   }
 
   updateObjectProperties(object: DrawingObject, changes: Partial<DrawingOptions & { x: number; y: number; width: number; height: number }>): void {
@@ -1397,13 +1545,19 @@ export class DrawingEngine {
   }
 
   private startTextEditing(textObj: DrawingObject): void {
-    if (this.isEditingText) return;
+    console.log('📝 startTextEditing called for:', textObj);
+    
+    if (this.isEditingText) {
+      console.log('⚠️ Already editing text, ignoring');
+      return;
+    }
     
     this.isEditingText = true;
     this.selectedObject = textObj;
     
     // 记录编辑状态
     this.editingText = textObj.text || '';
+    console.log('📝 Current text content:', this.editingText);
     
     // Figma风格：如果是空文本或占位符文本，全选准备替换
     if (!this.editingText || this.editingText === '点击编辑文字') {
@@ -1421,11 +1575,12 @@ export class DrawingEngine {
     
     // 确保canvas获得焦点以接收键盘事件
     this.canvas.focus();
+    console.log('🎯 Canvas focused, active element:', document.activeElement);
     
     // 重新绘制以显示编辑状态
     this.redrawCanvas();
     
-    console.log('📝 Started inline text editing for:', textObj.text);
+    console.log('✅ Text editing started successfully');
   }
 
   private startTextCursorBlink(): void {
@@ -1943,6 +2098,7 @@ export class DrawingEngine {
 
   /**
    * 绘制变换控制手柄
+
    */
   private drawTransformHandles(): void {
     if (!this.selectedObject) return;

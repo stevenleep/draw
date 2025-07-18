@@ -1,10 +1,10 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
 
 export class CircleTool extends ToolPlugin {
   constructor() {
     super(
       'circle',
-      'circle',
+      'circle' as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
@@ -32,8 +32,25 @@ export class CircleTool extends ToolPlugin {
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
     
-    // 预览绘制
-    this.renderPreview(startObject, context);
+    // 直接渲染圆形，不需要调用renderPreview
+    if (startObject.endPoint) {
+      const radius = Math.sqrt(
+        (startObject.endPoint.x - startObject.startPoint.x) ** 2 + 
+        (startObject.endPoint.y - startObject.startPoint.y) ** 2
+      );
+      
+      context.ctx.beginPath();
+      context.ctx.arc(startObject.startPoint.x, startObject.startPoint.y, radius, 0, Math.PI * 2);
+      
+      // 填充
+      if (startObject.options.hasFill && startObject.options.fillColor) {
+        context.ctx.fillStyle = startObject.options.fillColor;
+        context.ctx.fill();
+      }
+      
+      // 描边
+      context.ctx.stroke();
+    }
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

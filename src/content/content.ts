@@ -1,6 +1,4 @@
 import { DrawingEngine, type DrawingMode, type DrawingOptions } from '../lib/DrawingEngine';
-import { PropertyPanel, type PropertyChangeEvent } from './PropertyPanel';
-import { FigmaStylePropertyPanel } from './ui/FigmaStylePropertyPanel';
 import html2canvas from 'html2canvas';
 
 class ContentScript {
@@ -8,8 +6,6 @@ class ContentScript {
   private canvas: HTMLCanvasElement | null = null;
   private toolbar: HTMLElement | null = null;
   private overlay: HTMLElement | null = null;
-  private propertyPanel: PropertyPanel | null = null;
-  private figmaPropertyPanel: FigmaStylePropertyPanel | null = null;
   private isActive = false;
   private librariesLoaded = false;
   private currentMode: DrawingMode = 'select';
@@ -39,7 +35,7 @@ class ContentScript {
     hasFill: false,
     fontFamily: 'Arial',
     fontWeight: 'normal',
-    textAlign: 'center',
+    textAlign: 'left', // 改为左对齐，更符合Figma
     lineDash: [],
     shadowColor: 'transparent',
     shadowBlur: 0,
@@ -188,36 +184,17 @@ class ContentScript {
 
   private async activate(): Promise<void> {
     if (this.isActive || !this.librariesLoaded) return;
-
-    console.log('🎨 Activating drawing mode...');
-    
+    document.body.style.pointerEvents = 'none';
     try {
       // 先不创建overlay，专注Canvas问题
       // this.overlay = this.createOverlay();
       
       this.createCanvas();
-      
-      // 检查Canvas是否真的在页面上
-      console.log('Canvas in DOM:', document.contains(this.canvas));
-      console.log('Canvas style:', this.canvas?.style.cssText);
-      console.log('Canvas rect:', this.canvas?.getBoundingClientRect());
-      
       this.createToolbar();
       
         // 延迟初始化DrawingEngine，确保Canvas完全准备好
         setTimeout(() => {
           this.drawingEngine = new DrawingEngine(this.canvas!);
-          
-          // 创建Figma风格属性面板
-          this.figmaPropertyPanel = new FigmaStylePropertyPanel({
-            onPropertyChange: this.handleFigmaPropertyChange.bind(this),
-            onClose: () => this.figmaPropertyPanel?.hide()
-          });
-          
-          // 设置对象编辑回调
-          this.drawingEngine.setObjectEditCallback((object, position) => {
-            this.figmaPropertyPanel?.show(object, position);
-          });
           
           // 强制设置初始模式和选项
           this.drawingEngine.setMode(this.currentMode);
@@ -237,10 +214,6 @@ class ContentScript {
   }
 
   private deactivate(): void {
-    // 隐藏属性面板
-    this.propertyPanel?.hide();
-    this.figmaPropertyPanel?.hide();
-    
     // 安全移除canvas
     this.safeRemoveElement(this.canvas);
     this.canvas = null;
@@ -260,12 +233,9 @@ class ContentScript {
     
     // 恢复页面交互
     document.body.style.pointerEvents = '';
-    
     window.removeEventListener('resize', this.handleResize);
-    
     this.isActive = false;
     this.drawingEngine = null;
-    
     this.showNotification('绘图模式已关闭', 'info');
   }
 
@@ -276,6 +246,7 @@ class ContentScript {
     
     this.canvas = document.createElement('canvas');
     this.canvas.id = 'drawing-canvas-overlay';
+    this.canvas.tabIndex = 0; // 允许canvas获得焦点以接收键盘事件
     
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -289,10 +260,10 @@ class ContentScript {
     this.canvas.style.left = '0px';
     this.canvas.style.width = width + 'px';
     this.canvas.style.height = height + 'px';
-    this.canvas.style.zIndex = '999999999';
+    this.canvas.style.zIndex = '999999998'; // 确保低于工具栏的z-index
     this.canvas.style.pointerEvents = 'auto';
-    this.canvas.style.background = 'rgba(0,255,0,0.1)'; // 绿色背景测试
-    this.canvas.style.border = '5px solid red';
+    this.canvas.style.background = 'transparent'; // 移除测试背景
+    // 移除测试边框
 
     // 直接添加到body最后
     document.body.appendChild(this.canvas);
@@ -334,597 +305,270 @@ class ContentScript {
   }
 
   private createToolbar(): void {
+    // 创建工具栏
     this.toolbar = document.createElement('div');
     this.toolbar.id = 'drawing-toolbar-overlay';
-    this.toolbar.style.cssText = `
-      position: fixed !important;
-      bottom: 24px !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      background: rgba(20, 20, 20, 0.88) !important;
-      backdrop-filter: blur(24px) saturate(180%) !important;
-      border-radius: 20px !important;
-      padding: 8px !important;
-      box-shadow: 
-        0 16px 40px rgba(0, 0, 0, 0.12),
-        0 8px 16px rgba(0, 0, 0, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
-      z-index: 2147483647 !important;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif !important;
-      user-select: none !important;
-      pointer-events: auto !important;
-      color: white !important;
-      cursor: move !important;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-      max-width: min(90vw, 800px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    `;
+    this.toolbar.style.cssText =
+      'position: fixed !important;'
+      + 'top: 16px !important;'
+      + 'left: 50% !important;'
+      + 'transform: translateX(-50%) !important;'
+      + 'z-index: 2147483647 !important;'
+      + "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif !important;"
+      + 'user-select: none !important;'
+      + 'pointer-events: auto !important;'
+      + 'transition: all 0.2s ease !important;'
+      + 'font-size: 12px !important;';
 
+    // Figma风格主工具栏（draw-前缀，分组+分隔线+属性区）
     this.toolbar.innerHTML = `
-      <div id="toolbar-content" style="
-        display: flex; 
-        align-items: center; 
-        gap: 4px;
-        padding: 4px;
-      ">
-        <!-- 拖拽手柄 -->
-        <div id="toolbar-handle" style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          cursor: grab;
-          border-radius: 12px;
-          transition: all 0.2s ease;
-        " title="拖拽移动工具栏 • 快捷键: 1-9选择工具, Del删除, ⌘C复制, ⌘V粘贴 • 选中元素查看属性面板">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="4" cy="4" r="1.5" fill="rgba(255,255,255,0.4)"/>
-            <circle cx="12" cy="4" r="1.5" fill="rgba(255,255,255,0.4)"/>
-            <circle cx="4" cy="8" r="1.5" fill="rgba(255,255,255,0.4)"/>
-            <circle cx="12" cy="8" r="1.5" fill="rgba(255,255,255,0.4)"/>
-            <circle cx="4" cy="12" r="1.5" fill="rgba(255,255,255,0.4)"/>
-            <circle cx="12" cy="12" r="1.5" fill="rgba(255,255,255,0.4)"/>
-          </svg>
-        </div>
-
-        <!-- 分隔线 -->
-        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
-
-        <!-- 绘画工具 -->
-        <div class="tool-group" style="display: flex; gap: 2px;">
-          <button class="tool-btn active" data-mode="select" title="选择工具 (快捷键: V)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 2L6 14L8 8L14 6L2 2Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          
-          <button class="tool-btn" data-mode="pen" title="画笔 (快捷键: 1)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 14L6 10L10 6L14 2L12 4L8 8L4 12L2 14Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          
-          <!-- 图形工具组 -->
-          <div class="tool-dropdown" style="position: relative;">
-            <button class="tool-btn" data-mode="rectangle" title="图形工具">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              </svg>
-              <svg width="6" height="4" viewBox="0 0 6 4" fill="currentColor" style="margin-left: 2px; opacity: 0.7;">
-                <path d="M3 4L0 1h6l-3 3z"/>
-              </svg>
-            </button>
-            <div class="dropdown-content">
-              <div class="dropdown-header">选择图形</div>
-              <div class="shapes-grid">
-                <button class="shape-btn" data-mode="rectangle" title="矩形">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <rect x="2" y="2" width="14" height="14" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>矩形</span>
-                </button>
-                <button class="shape-btn" data-mode="circle" title="圆形">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>圆形</span>
-                </button>
-                <button class="shape-btn" data-mode="triangle" title="三角形">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M9 2L16 16H2L9 2Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>三角形</span>
-                </button>
-                <button class="shape-btn" data-mode="star" title="星形">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M9 1L11 7H17L12 11L14 17L9 13L4 17L6 11L1 7H7L9 1Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>星形</span>
-                </button>
-                <button class="shape-btn" data-mode="line" title="直线">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M2 16L16 2" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>直线</span>
-                </button>
-                <button class="shape-btn" data-mode="arrow" title="箭头">
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M2 16L16 2M16 2L16 9M16 2L9 2" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                  </svg>
-                  <span>箭头</span>
-                </button>
-              </div>
+      <div class="draw-toolbar">
+        <div class="draw-toolbar-content">
+          <div class="draw-toolbar-group">
+            <button class="draw-tool-btn active" data-mode="select" title="选择 (V)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M4.5 2L11.5 9L8 14L6 9L4.5 2Z" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" data-mode="pen" title="画笔 (P)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M12.7 3.3C13.1 2.9 13.1 2.3 12.7 1.9L12.1 1.3C11.7 0.9 11.1 0.9 10.7 1.3L2 10V14H6L14.7 5.3C15.1 4.9 15.1 4.3 14.7 3.9L14.1 3.3C13.7 2.9 13.1 2.9 12.7 3.3L4 12H4L12.7 3.3Z" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" data-mode="line" title="直线 (L)"><svg width="16" height="16" viewBox="0 0 16 16"><line x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="2"/></svg></button>
+            <button class="draw-tool-btn" data-mode="rectangle" title="矩形 (R)"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" data-mode="circle" title="椭圆 (O)"><svg width="16" height="16" viewBox="0 0 16 16"><ellipse cx="8" cy="8" rx="6" ry="6" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" data-mode="text" title="文字 (T)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2.5 3H13.5V5H9.5V13H6.5V5H2.5V3Z" fill="currentColor"/></svg></button>
+          </div>
+          <div class="draw-divider"></div>
+          <div class="draw-toolbar-group">
+            <input id="draw-color-picker" type="color" title="颜色" style="width:28px;height:28px;border:none;background:transparent;cursor:pointer;" />
+            <label style="display:flex;align-items:center;gap:2px;font-size:12px;">
+              <span>线宽</span>
+              <input id="draw-stroke-width" type="range" min="1" max="16" value="2" style="width:48px;" />
+              <span id="draw-stroke-width-value">2</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:2px;font-size:12px;">
+              <span>透明</span>
+              <input id="draw-opacity" type="range" min="0.1" max="1" step="0.01" value="1" style="width:48px;" />
+              <span id="draw-opacity-value">1</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:2px;font-size:12px;">
+              <span>字号</span>
+              <input id="draw-font-size" type="range" min="10" max="64" value="16" style="width:48px;" />
+              <span id="draw-font-size-value">16</span>
+            </label>
+            <div class="draw-align-group">
+              <button class="draw-align-btn" data-align="left" title="左对齐">L</button>
+              <button class="draw-align-btn" data-align="center" title="居中">C</button>
+              <button class="draw-align-btn" data-align="right" title="右对齐">R</button>
+            </div>
+            <div class="draw-weight-group">
+              <button class="draw-weight-btn" data-weight="normal" title="常规">常</button>
+              <button class="draw-weight-btn" data-weight="bold" title="加粗">粗</button>
             </div>
           </div>
-
-          <button class="tool-btn" data-mode="text" title="文字 (快捷键: 3)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M4 3H12M8 3V13M6 13H10" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          
-          <button class="tool-btn" data-mode="hand-drawn" title="手绘 (快捷键: 4)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 6C4 4 6 6 8 4C10 2 12 4 14 6" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-
-          <button class="tool-btn" data-mode="eraser" title="橡皮擦 (快捷键: 5)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M10 6L14 10L10 14L2 6L6 2L10 6Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 分隔线 -->
-        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
-
-        <!-- 颜色和粗细 -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="color" id="color-picker" value="#000000" style="
-            width: 28px; 
-            height: 28px; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer;
-            background: none;
-            outline: none;
-          " title="颜色">
-          
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="rgba(255,255,255,0.6)">
-              <circle cx="6" cy="6" r="1"/>
-            </svg>
-            <input type="range" id="stroke-width" min="1" max="20" value="2" style="
-              width: 60px; 
-              height: 4px;
-              appearance: none;
-              background: rgba(255, 255, 255, 0.2);
-              border-radius: 2px;
-              outline: none;
-              cursor: pointer;
-            " title="粗细">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="rgba(255,255,255,0.6)">
-              <circle cx="6" cy="6" r="3"/>
-            </svg>
+          <div class="draw-divider"></div>
+          <div class="draw-toolbar-group">
+            <button class="draw-tool-btn" id="undo-btn" title="撤销 (⌘Z)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 3V1L4 5L8 9V7C10.76 7 13 9.24 13 12C13 12.65 12.87 13.26 12.64 13.83L13.92 15.12C14.58 14.22 15 13.16 15 12C15 8.14 11.86 5 8 5V3Z" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" id="delete-selected-btn" title="删除选中 (Del)"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M5 2H11V3H14V5H2V3H5V2ZM3 6H13V14H3V6ZM5 8V12H7V8H5ZM9 8V12H11V8H9Z" fill="currentColor"/></svg></button>
+            <button class="draw-tool-btn" id="clear-btn" title="清空画布"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 2C4.7 2 2 4.7 2 8C2 11.3 4.7 14 8 14C11.3 14 14 11.3 14 8C14 4.7 11.3 2 8 2ZM8 3C10.8 3 13 5.2 13 8C13 10.8 10.8 13 8 13C5.2 13 3 10.8 3 8C3 5.2 5.2 3 8 3ZM5.7 5L5 5.7L7.3 8L5 10.3L5.7 11L8 8.7L10.3 11L11 10.3L8.7 8L11 5.7L10.3 5L8 7.3L5.7 5Z" fill="currentColor"/></svg></button>
           </div>
         </div>
-
-        <!-- 分隔线 -->
-        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
-
-        <!-- 操作按钮 -->
-        <div class="tool-group" style="display: flex; gap: 2px;">
-          <button class="action-btn" id="undo-btn" title="撤销 (⌘Z)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8C3 5.5 5 3.5 7.5 3.5C10 3.5 12 5.5 12 8S10 12.5 7.5 12.5H6" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M8 6L6 8L8 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          <button class="action-btn" id="delete-selected-btn" title="删除选中 (Del)">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M6 2H10V4H6V2Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M3 4H13V4C13 4 13 4 12 4H4C3 4 3 4 3 4Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M5 6V12H11V6" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          <button class="action-btn" id="clear-btn" title="清空画布">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 2L14 14M2 14L14 2" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 分隔线 -->
-        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
-
-        <!-- 导出按钮 -->
-        <div class="tool-group" style="display: flex; gap: 2px;">
-          <button class="action-btn" id="download-bg" title="导出含背景">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M2 12H14" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-          <button class="action-btn" id="download-pure" title="导出纯绘图">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 4H13V12H3V4Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
-              <path d="M8 2V6M8 6L6 4M8 6L10 4" stroke="currentColor" stroke-width="1.5" fill="none"/>
-            </svg>
-          </button>
-        </div>
-
-        <!-- 分隔线 -->
-        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.12); margin: 0 4px;"></div>
-
-        <!-- 关闭按钮 -->
-        <button id="drawing-close" style="
-          width: 32px;
-          height: 32px;
-          background: rgba(255, 59, 77, 0.9);
-          color: white;
-          border: none;
-          border-radius: 12px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-          margin-left: 4px;
-        " title="关闭工具栏">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M3 3L11 11M3 11L11 3" stroke="currentColor" stroke-width="1.5" fill="none"/>
-          </svg>
-        </button>
       </div>
-
-      <style>
-        .tool-btn, .action-btn {
-          width: 36px;
-          height: 36px;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.7);
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-        }
-        
-        .tool-btn:hover, .action-btn:hover {
-          background: rgba(255, 255, 255, 0.12);
-          color: rgba(255, 255, 255, 0.9);
-          transform: translateY(-1px);
-        }
-        
-        .tool-btn.active {
-          background: rgba(99, 102, 241, 0.9);
-          color: white;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-        
-        .tool-btn.active:hover {
-          background: rgba(99, 102, 241, 1);
-          transform: translateY(-1px);
-        }
-
-        #toolbar-handle:hover {
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        #toolbar-handle:active {
-          cursor: grabbing;
-          background: rgba(255, 255, 255, 0.12);
-        }
-
-        #drawing-close:hover {
-          background: rgba(255, 59, 77, 1) !important;
-          transform: translateY(-1px);
-        }
-        
-        #stroke-width::-webkit-slider-thumb {
-          appearance: none;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.9);
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        
-        #stroke-width::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.9);
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        @media (max-width: 768px) {
-          #toolbar-content {
-            flex-wrap: wrap;
-            max-width: 90vw;
-          }
-        }
-      </style>
     `;
-
     document.documentElement.appendChild(this.toolbar);
+    // 添加样式
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .draw-toolbar { background: #2C2C2C !important; border-radius: 6px !important; box-shadow: 0 2px 5px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2) !important; margin: 0 !important; padding: 6px !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+      .draw-toolbar-content { display: flex !important; align-items: center !important; gap: 8px !important; }
+      .draw-toolbar-group { display: flex !important; align-items: center !important; gap: 4px !important; }
+      .draw-divider { width: 1px !important; height: 24px !important; background-color: #444 !important; margin: 0 4px !important; }
+      .draw-tool-btn { width: 32px !important; height: 32px !important; border-radius: 2px !important; display: flex !important; align-items: center !important; justify-content: center !important; background: transparent !important; border: none !important; color: #ACACAC !important; cursor: pointer !important; padding: 0 !important; transition: background-color 0.1s ease, color 0.1s ease !important; }
+      .draw-tool-btn:hover { background-color: #3E3E3E !important; color: #FFF !important; }
+      .draw-tool-btn.active { background-color: #0D99FF !important; color: #FFF !important; }
+      @media (max-width: 600px) { .draw-toolbar { padding: 4px !important; } .draw-tool-btn { width: 28px !important; height: 28px !important; } .draw-divider { height: 20px !important; } }
+    `;
+    document.head.appendChild(style);
     this.setupToolbarEvents();
     this.setupToolbarDragging();
-    console.log('🎨 Minimalist toolbar created');
+    console.log('🎨 Toolbar created');
   }
 
   private setupToolbarEvents(): void {
     if (!this.toolbar) return;
-
-    // 关闭按钮
-    const closeBtn = this.toolbar.querySelector('#drawing-close') as HTMLButtonElement;
-    closeBtn?.addEventListener('click', () => this.deactivate());
-
-    // 模式切换按钮
-    const modeButtons = this.toolbar.querySelectorAll('.tool-btn') as NodeListOf<HTMLButtonElement>;
-    console.log('🔧 Found tool buttons:', modeButtons.length);
-    
-    // 为工具栏添加统一的点击事件处理
-    this.toolbar.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const toolBtn = target.closest('.tool-btn') as HTMLButtonElement;
-      const shapeBtn = target.closest('.shape-btn') as HTMLButtonElement;
-      
-      if (shapeBtn) {
-        // 处理图形工具选择
-        e.preventDefault();
-        e.stopPropagation();
-        const mode = shapeBtn.dataset.mode;
-        if (mode && this.toolbar) {
-          console.log('🎨 Shape button clicked, switching to mode:', mode);
+    // 工具栏按钮事件
+    const buttons = this.toolbar.querySelectorAll('.draw-tool-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const button = e.currentTarget as HTMLButtonElement;
+        const mode = button.dataset.mode;
+        if (mode) {
           this.setModeUI(mode as DrawingMode);
-          
-          // 更新主工具按钮的图标
-          const mainToolBtn = this.toolbar.querySelector('.tool-dropdown .tool-btn') as HTMLButtonElement;
-          if (mainToolBtn) {
-            const shapeIcon = shapeBtn.querySelector('svg')?.cloneNode(true) as SVGElement;
-            const dropdown = mainToolBtn.querySelector('svg:last-child')?.cloneNode(true) as SVGElement;
-            mainToolBtn.innerHTML = '';
-            if (shapeIcon) {
-              shapeIcon.style.marginRight = '2px';
-              mainToolBtn.appendChild(shapeIcon);
-            }
-            if (dropdown) {
-              dropdown.style.marginLeft = '2px';
-              dropdown.style.opacity = '0.7';
-              mainToolBtn.appendChild(dropdown);
-            }
-            // 更新工具提示
-            mainToolBtn.title = shapeBtn.title;
+        } else if (button.id === 'undo-btn') {
+          this.drawingEngine?.undo();
+        } else if (button.id === 'delete-selected-btn') {
+          this.drawingEngine?.deleteSelected();
+        } else if (button.id === 'clear-btn') {
+          if (confirm('确定要清空画布吗？')) {
+            this.drawingEngine?.clear();
           }
-          
-          // 更新按钮状态
-          this.toolbar.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-          this.toolbar.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active'));
-          shapeBtn.classList.add('active');
-          if (mainToolBtn) mainToolBtn.classList.add('active');
-          
-          // 隐藏下拉菜单（稍微延迟以确保点击完成）
-          setTimeout(() => {
-            if (this.toolbar) {
-              const dropdown = this.toolbar.querySelector('.dropdown-content') as HTMLElement;
-              if (dropdown) {
-                dropdown.classList.remove('show');
-                setTimeout(() => dropdown.style.display = 'none', 200);
-              }
-            }
-          }, 150);
         }
-      } else if (toolBtn && !toolBtn.closest('.tool-dropdown')) {
-        // 处理普通工具选择（排除下拉菜单中的主按钮）
+      });
+    });
+    // 颜色选择
+    const colorPicker = this.toolbar.querySelector('#draw-color-picker') as HTMLInputElement;
+    if (colorPicker) {
+      colorPicker.value = this.currentOptions.color;
+      colorPicker.addEventListener('input', (e) => {
+        this.currentOptions.color = (e.target as HTMLInputElement).value;
+        this.updateOptions();
+        this.updateSelectedObjectStyle({ color: this.currentOptions.color });
+      });
+    }
+    // 线宽
+    const strokeWidth = this.toolbar.querySelector('#draw-stroke-width') as HTMLInputElement;
+    const strokeWidthValue = this.toolbar.querySelector('#draw-stroke-width-value') as HTMLSpanElement;
+    if (strokeWidth && strokeWidthValue) {
+      strokeWidth.value = this.currentOptions.strokeWidth.toString();
+      strokeWidthValue.textContent = this.currentOptions.strokeWidth.toString();
+      strokeWidth.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        this.currentOptions.strokeWidth = value;
+        strokeWidthValue.textContent = value.toString();
+        this.updateOptions();
+        this.updateSelectedObjectStyle({ strokeWidth: value });
+      });
+    }
+    // 透明度
+    const opacity = this.toolbar.querySelector('#draw-opacity') as HTMLInputElement;
+    const opacityValue = this.toolbar.querySelector('#draw-opacity-value') as HTMLSpanElement;
+    if (opacity && opacityValue) {
+      opacity.value = this.currentOptions.opacity.toString();
+      opacityValue.textContent = this.currentOptions.opacity.toString();
+      opacity.addEventListener('input', (e) => {
+        const value = parseFloat((e.target as HTMLInputElement).value);
+        this.currentOptions.opacity = value;
+        opacityValue.textContent = value.toString();
+        this.updateOptions();
+        this.updateSelectedObjectStyle({ opacity: value });
+      });
+    }
+    // 字体大小
+    const fontSize = this.toolbar.querySelector('#draw-font-size') as HTMLInputElement;
+    const fontSizeValue = this.toolbar.querySelector('#draw-font-size-value') as HTMLSpanElement;
+    if (fontSize && fontSizeValue) {
+      fontSize.value = this.currentOptions.fontSize.toString();
+      fontSizeValue.textContent = this.currentOptions.fontSize.toString();
+      fontSize.addEventListener('input', (e) => {
+        const value = parseInt((e.target as HTMLInputElement).value);
+        this.currentOptions.fontSize = value;
+        fontSizeValue.textContent = value.toString();
+        this.updateOptions();
+        this.updateSelectedObjectStyle({ fontSize: value });
+      });
+    }
+    // 文本对齐
+    const alignButtons = this.toolbar.querySelectorAll('.draw-align-btn') as NodeListOf<HTMLButtonElement>;
+    alignButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
         e.preventDefault();
-        e.stopPropagation();
-        const mode = toolBtn.dataset.mode;
-        if (mode && this.toolbar) {
-          console.log('🎨 Tool button clicked, switching to mode:', mode);
-          this.setModeUI(mode as DrawingMode);
-          
-          // 更新按钮状态
-          this.toolbar.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-          this.toolbar.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active'));
-          toolBtn.classList.add('active');
+        alignButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const alignType = btn.dataset.align;
+        if (alignType) {
+          const align = alignType as 'left' | 'center' | 'right';
+          this.currentOptions.textAlign = align;
+          this.updateOptions();
+          this.updateSelectedObjectStyle({ textAlign: align });
         }
+      });
+    });
+    // 字体粗细
+    const weightButtons = this.toolbar.querySelectorAll('.draw-weight-btn') as NodeListOf<HTMLButtonElement>;
+    weightButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        weightButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const weightType = btn.dataset.weight;
+        if (weightType) {
+          this.currentOptions.fontWeight = weightType as 'normal' | 'bold';
+          this.updateOptions();
+          this.updateSelectedObjectStyle({ fontWeight: weightType });
+        }
+      });
+    });
+    // 键盘快捷键
+    document.addEventListener('keydown', (e) => {
+      if (!this.isActive) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        this.drawingEngine?.undo();
+      }
+      if (e.key === 'v' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        this.setModeUI('select');
+      }
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        this.setModeUI('rectangle');
+      }
+      if (e.key === 't' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        this.setModeUI('text');
       }
     });
+  }
 
-    // 为下拉菜单添加更稳定的显示/隐藏逻辑
-    const dropdown = this.toolbar.querySelector('.tool-dropdown');
-    if (dropdown) {
-      let hideTimeout: number;
-      
-      const showDropdown = () => {
-        clearTimeout(hideTimeout);
-        const content = dropdown.querySelector('.dropdown-content') as HTMLElement;
-        if (content) {
-          content.style.display = 'block';
-          // 强制重排以确保动画生效
-          content.offsetHeight;
-          content.classList.add('show');
-        }
-      };
-      
-      const hideDropdown = () => {
-        hideTimeout = window.setTimeout(() => {
-          const content = dropdown.querySelector('.dropdown-content') as HTMLElement;
-          if (content) {
-            content.classList.remove('show');
-            setTimeout(() => {
-              if (!content.classList.contains('show')) {
-                content.style.display = 'none';
-              }
-            }, 200); // 等待动画完成
-          }
-        }, 300); // 300ms延迟，给用户足够时间移动鼠标
-      };
-      
-      // 主按钮悬停
-      dropdown.addEventListener('mouseenter', showDropdown);
-      dropdown.addEventListener('mouseleave', hideDropdown);
-      
-      // 下拉内容区域悬停
-      const dropdownContent = dropdown.querySelector('.dropdown-content') as HTMLElement;
-      if (dropdownContent) {
-        dropdownContent.addEventListener('mouseenter', showDropdown);
-        dropdownContent.addEventListener('mouseleave', hideDropdown);
-      }
+  private initializeTextDropdownStates(): void {
+    if (!this.toolbar) return;
+
+    // 设置默认的文本对齐状态（寻找data-align="left"的按钮）
+    const defaultAlignBtn = this.toolbar.querySelector('.align-btn[data-align="left"]') as HTMLButtonElement;
+    if (defaultAlignBtn) {
+      defaultAlignBtn.classList.add('active');
     }
 
-    // 颜色选择器
-    const colorPicker = this.toolbar.querySelector('#color-picker') as HTMLInputElement;
-    colorPicker?.addEventListener('change', (e) => {
-      this.currentOptions.color = (e.target as HTMLInputElement).value;
-      this.updateOptions();
-      // 如果有选中的对象，也更新该对象的颜色
-      this.updateSelectedObjectStyle({ color: this.currentOptions.color });
-    });
-
-    // 线条粗细
-    const strokeWidth = this.toolbar.querySelector('#stroke-width') as HTMLInputElement;
-    strokeWidth?.addEventListener('input', (e) => {
-      const value = parseInt((e.target as HTMLInputElement).value);
-      this.currentOptions.strokeWidth = value;
-      this.updateOptions();
-      // 如果有选中的对象，也更新该对象的粗细
-      this.updateSelectedObjectStyle({ strokeWidth: this.currentOptions.strokeWidth });
-      console.log('🖌️ Stroke width changed to:', value);
-    });
-
-    // 操作按钮
-    const undoBtn = this.toolbar.querySelector('#undo-btn') as HTMLButtonElement;
-    undoBtn?.addEventListener('click', () => this.undo());
-
-    const deleteSelectedBtn = this.toolbar.querySelector('#delete-selected-btn') as HTMLButtonElement;
-    deleteSelectedBtn?.addEventListener('click', () => this.deleteSelected());
-
-    const clearBtn = this.toolbar.querySelector('#clear-btn') as HTMLButtonElement;
-    clearBtn?.addEventListener('click', () => this.clear());
-
-    const downloadBgBtn = this.toolbar.querySelector('#download-bg') as HTMLButtonElement;
-    downloadBgBtn?.addEventListener('click', () => this.download(true));
-
-    const downloadPureBtn = this.toolbar.querySelector('#download-pure') as HTMLButtonElement;
-    downloadPureBtn?.addEventListener('click', () => this.download(false));
+    // 设置默认的字体重量状态（寻找data-weight="normal"的按钮）
+    const defaultWeightBtn = this.toolbar.querySelector('.weight-btn[data-weight="normal"]') as HTMLButtonElement;
+    if (defaultWeightBtn) {
+      defaultWeightBtn.classList.add('active');
+    }
   }
 
   private setupToolbarDragging(): void {
+    // 工具栏拖拽功能
     if (!this.toolbar) return;
-
-    const handle = this.toolbar.querySelector('#toolbar-handle') as HTMLElement;
-    if (!handle) {
-      console.warn('⚠️ Toolbar handle not found');
-      return;
-    }
-
+    
     const toolbar = this.toolbar;
     let isDragging = false;
-    let dragOffset = { x: 0, y: 0 };
-    let currentPosition = { x: 0, y: 0 };
-
-    const startDrag = (e: MouseEvent | TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    let startX = 0;
+    let startY = 0;
+    
+    // 拖动开始
+    toolbar.addEventListener('mousedown', (e: MouseEvent) => {
+      // 忽略按钮点击
+      if ((e.target as HTMLElement).closest('.figma-tool-button')) return;
       
       isDragging = true;
-      handle.style.cursor = 'grabbing';
-      
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      const rect = toolbar.getBoundingClientRect();
-      
-      dragOffset.x = clientX - (rect.left + rect.width / 2);
-      dragOffset.y = clientY - rect.top;
-      
-      toolbar.style.transition = 'none';
-      document.body.style.cursor = 'grabbing';
-      
-      console.log('🖱️ Toolbar drag started');
-    };
-
-    const updatePosition = (e: MouseEvent | TouchEvent) => {
+      startX = e.clientX - toolbar.offsetLeft;
+      startY = e.clientY - toolbar.offsetTop;
+      toolbar.style.cursor = 'grabbing';
+    });
+    
+    // 拖动过程
+    document.addEventListener('mousemove', (e: MouseEvent) => {
       if (!isDragging) return;
       
-      e.preventDefault();
-      
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      
-      const newX = clientX - dragOffset.x;
-      const newY = clientY - dragOffset.y;
-      
-      // 边界检测
-      const rect = toolbar.getBoundingClientRect();
-      const maxX = window.innerWidth - rect.width / 2;
-      const minX = rect.width / 2;
-      const maxY = window.innerHeight - rect.height - 20;
-      const minY = 20;
-      
-      currentPosition.x = Math.max(minX, Math.min(maxX, newX));
-      currentPosition.y = Math.max(minY, Math.min(maxY, newY));
-      
-      // 应用位置
-      toolbar.style.left = `${currentPosition.x}px`;
-      toolbar.style.top = `${currentPosition.y}px`;
-      toolbar.style.bottom = 'auto';
-      toolbar.style.transform = 'translateX(-50%)';
-    };
-
-    const endDrag = () => {
-      if (!isDragging) return;
-      
+      const left = e.clientX - startX;
+      const top = e.clientY - startY;
+      toolbar.style.left = left + 'px';
+      toolbar.style.top = top + 'px';
+      toolbar.style.transform = 'none';
+    });
+    
+    // 拖动结束
+    document.addEventListener('mouseup', () => {
       isDragging = false;
-      handle.style.cursor = 'grab';
-      document.body.style.cursor = '';
-      
-      // 恢复过渡动画
-      toolbar.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-      
-      // 自动吸附到底部中央（如果距离底部较近）
-      const rect = toolbar.getBoundingClientRect();
-      const distanceToBottom = window.innerHeight - rect.bottom;
-      
-      if (distanceToBottom < 150 && Math.abs(currentPosition.x - window.innerWidth / 2) < 200) {
-        setTimeout(() => {
-          toolbar.style.left = '50%';
-          toolbar.style.top = 'auto';
-          toolbar.style.bottom = '24px';
-          toolbar.style.transform = 'translateX(-50%)';
-          console.log('🧲 Auto-snap to bottom center');
-        }, 100);
-      }
-      
-      console.log('🖱️ Toolbar drag ended');
-    };
-
-    // 鼠标事件
-    handle.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', updatePosition);
-    document.addEventListener('mouseup', endDrag);
-
-    // 触摸事件
-    handle.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', updatePosition, { passive: false });
-    document.addEventListener('touchend', endDrag);
-
-    // 防止工具栏其他按钮触发拖拽
-    const buttons = toolbar.querySelectorAll('button, input');
-    buttons.forEach(button => {
-      button.addEventListener('mousedown', (e) => e.stopPropagation());
-      button.addEventListener('touchstart', (e) => e.stopPropagation());
+      if (toolbar) toolbar.style.cursor = '';
     });
   }
+  
+  // 设置工具UI
 
   private setModeUI(mode: DrawingMode): void {
     console.log('🎨 Updating UI for mode:', mode);
@@ -934,9 +578,11 @@ class ContentScript {
       this.drawingEngine.setMode(mode);
     }
 
-    // 更新按钮样式
-    const modeButtons = this.toolbar?.querySelectorAll('.tool-btn') as NodeListOf<HTMLButtonElement>;
-    modeButtons?.forEach(btn => {
+    if (!this.toolbar) return;
+
+    // 更新 draw 风格按钮样式
+    const toolButtons = this.toolbar.querySelectorAll('.draw-tool-btn') as NodeListOf<HTMLButtonElement>;
+    toolButtons.forEach(btn => {
       if (btn.dataset.mode === mode) {
         btn.classList.add('active');
       } else {
@@ -958,88 +604,6 @@ class ContentScript {
         this.drawingEngine.updateObjectProperties(selectedObject, changes);
       }
     }
-  }
-
-  private handlePropertyChange(event: PropertyChangeEvent): void {
-    if (!this.drawingEngine) return;
-
-    switch (event.type) {
-      case 'style':
-        if (event.changes) {
-          this.drawingEngine.updateObjectProperties(event.object, event.changes);
-        }
-        break;
-      
-      case 'position':
-        if (event.changes) {
-          this.drawingEngine.updateObjectProperties(event.object, event.changes);
-        }
-        break;
-      
-      case 'delete':
-        this.drawingEngine.deleteObject(event.object);
-        break;
-      
-      case 'duplicate':
-        this.drawingEngine.duplicateObject(event.object);
-        break;
-    }
-  }
-
-  private handleFigmaPropertyChange(changes: Partial<DrawingOptions & { x: number; y: number; width: number; height: number; rotation: number; text: string }>): void {
-    if (!this.drawingEngine) return;
-    
-    const selectedObject = this.drawingEngine.getSelectedObject();
-    if (!selectedObject) return;
-
-    // 处理位置和尺寸变化
-    if ('x' in changes || 'y' in changes || 'width' in changes || 'height' in changes) {
-      const newBounds = {
-        x: changes.x ?? selectedObject.bounds.x,
-        y: changes.y ?? selectedObject.bounds.y,
-        width: changes.width ?? selectedObject.bounds.width,
-        height: changes.height ?? selectedObject.bounds.height
-      };
-      
-      // 更新对象的bounds和坐标
-      selectedObject.bounds = newBounds;
-      this.drawingEngine.updateObjectCoordinatesFromBounds(selectedObject, newBounds);
-    }
-
-    // 处理旋转
-    if ('rotation' in changes) {
-      if (!selectedObject.transform) {
-        selectedObject.transform = {
-          rotation: 0,
-          scaleX: 1,
-          scaleY: 1,
-          translateX: 0,
-          translateY: 0
-        };
-      }
-      selectedObject.transform.rotation = changes.rotation || 0;
-    }
-
-    // 处理文字内容
-    if ('text' in changes) {
-      selectedObject.text = changes.text;
-    }
-
-    // 处理其他样式属性
-    const styleChanges = { ...changes };
-    delete styleChanges.x;
-    delete styleChanges.y;
-    delete styleChanges.width;
-    delete styleChanges.height;
-    delete styleChanges.rotation;
-    delete styleChanges.text;
-
-    if (Object.keys(styleChanges).length > 0) {
-      Object.assign(selectedObject.options, styleChanges);
-    }
-
-    // 重新绘制
-    this.drawingEngine.redrawCanvas();
   }
 
   private handleResize(): void {
