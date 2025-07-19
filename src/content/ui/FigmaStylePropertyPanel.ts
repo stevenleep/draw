@@ -1,4 +1,4 @@
-import type { DrawingObject, DrawingOptions } from '../../lib/DrawingEngine.ts';
+import type { DrawingObject, DrawingOptions } from '../../lib';
 
 export interface PropertyPanelConfig {
   onPropertyChange: (changes: Partial<DrawingOptions & { x: number; y: number; width: number; height: number; rotation: number; }>) => void;

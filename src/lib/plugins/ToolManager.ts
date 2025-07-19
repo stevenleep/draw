@@ -4,6 +4,13 @@ import { RectangleTool } from './RectangleTool';
 import { CircleTool } from './CircleTool';
 import { TextTool } from './TextTool';
 import { ArrowTool } from './ArrowTool';
+import { LineTool } from './LineTool';
+import { HandDrawnTool } from './HandDrawnTool';
+import { EraserTool } from './EraserTool';
+import { HighlighterTool } from './HighlighterTool';
+import { StarTool } from './StarTool';
+import { TriangleTool } from './TriangleTool';
+import { SelectTool } from './SelectTool';
 
 export class ToolManager {
   private tools: Map<string, ToolPlugin> = new Map();
@@ -15,11 +22,19 @@ export class ToolManager {
 
   private registerDefaultTools(): void {
     // 注册默认工具
+    this.registerTool(new SelectTool());
     this.registerTool(new PenTool());
     this.registerTool(new RectangleTool());
     this.registerTool(new CircleTool());
     this.registerTool(new TextTool());
     this.registerTool(new ArrowTool());
+    // 注册业务工具
+    this.registerTool(new LineTool());
+    this.registerTool(new HandDrawnTool());
+    this.registerTool(new EraserTool());
+    this.registerTool(new HighlighterTool());
+    this.registerTool(new StarTool());
+    this.registerTool(new TriangleTool());
   }
 
   public registerTool(tool: ToolPlugin): void {

@@ -1,4 +1,4 @@
-import { DrawingObject, DrawingOptions, DrawingMode } from '../lib/DrawingEngine';
+import { DrawingObject, DrawingOptions, DrawingMode } from '../lib';
 
 export interface PropertyChangeEvent {
   type: 'style' | 'position' | 'size' | 'delete' | 'duplicate';

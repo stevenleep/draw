@@ -46,6 +46,7 @@ export class RectangleTool extends ToolPlugin {
       // 描边
       context.ctx.strokeRect(startObject.startPoint.x, startObject.startPoint.y, width, height);
     }
+    context.redrawCanvas();
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

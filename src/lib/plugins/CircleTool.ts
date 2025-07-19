@@ -51,6 +51,7 @@ export class CircleTool extends ToolPlugin {
       // 描边
       context.ctx.stroke();
     }
+    context.redrawCanvas();
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

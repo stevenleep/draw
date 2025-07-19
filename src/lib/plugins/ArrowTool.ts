@@ -43,6 +43,7 @@ export class ArrowTool extends ToolPlugin {
       // 绘制箭头头部
       this.drawArrowHead(startObject.startPoint, startObject.endPoint, context);
     }
+    context.redrawCanvas();
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

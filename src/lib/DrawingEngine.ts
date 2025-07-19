@@ -120,15 +120,31 @@ export class DrawingEngine {
   // 模式变化回调
   private onModeChange?: (mode: DrawingMode) => void;
 
+  // 性能优化相关
+  private redrawScheduled = false;
+  private lastRedrawTime = 0;
+  private redrawThrottleMs = 16; // ~60fps
+  private isMouseMoving = false;
+  private mouseMoveThrottleMs = 8; // ~120fps for mouse movement
+  private lastMouseMoveTime = 0;
+
   constructor(canvasElement: HTMLCanvasElement) {
     console.log('🎨 Creating SIMPLE native canvas drawing engine');
     
     this.canvas = canvasElement;
-    const context = canvasElement.getContext('2d', { willReadFrequently: true });
+    const context = canvasElement.getContext('2d', { 
+      willReadFrequently: true,
+      alpha: true,
+      desynchronized: true // 性能优化：减少同步开销
+    });
     if (!context) {
       throw new Error('Could not get 2D context from canvas');
     }
     this.ctx = context;
+    
+    // 性能优化：启用硬件加速
+    this.canvas.style.transform = 'translateZ(0)';
+    this.canvas.style.backfaceVisibility = 'hidden';
     
     // 初始化插件系统
     this.toolManager = new ToolManager();
@@ -150,17 +166,32 @@ export class DrawingEngine {
     this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
     this.canvas.addEventListener('mouseleave', this.handleMouseUp.bind(this));
     this.canvas.addEventListener('dblclick', this.handleDoubleClick.bind(this));
-    
     this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
     this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
     this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
-    
-    // 添加键盘事件监听
     this.canvas.addEventListener('keydown', this.handleKeyDown.bind(this));
-
     // 让canvas可以获取焦点
     this.canvas.tabIndex = 0;
-    
+    // canvas 获得焦点时高亮边框
+    this.canvas.style.outline = 'none';
+    this.canvas.addEventListener('focus', () => {
+      this.canvas.style.outline = '2px solid #18a0fb';
+    });
+    this.canvas.addEventListener('blur', () => {
+      this.canvas.style.outline = 'none';
+    });
+    // 编辑文本时点击画布空白处自动完成编辑
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (this.isEditingText) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        // 如果点击不在当前文本对象区域，完成编辑
+        if (!this.selectedObject || this.selectedObject.type !== 'text' || !this.isPointInObject(x, y, this.selectedObject)) {
+          this.finishTextEditing();
+        }
+      }
+    }, true);
     console.log('🎯 Event listeners attached');
   }
 
@@ -320,10 +351,18 @@ export class DrawingEngine {
     if (target && (
       target.closest('.figma-property-panel') ||
       target.closest('#drawing-toolbar-overlay') ||
-      target.closest('.dropdown-content') ||
-      target.classList.contains('tool-btn') ||
-      target.classList.contains('shape-btn')
+      target.closest('.figma-toolbar-content') ||
+      target.closest('.figma-toolbar-section') ||
+      target.closest('.figma-toolbar-group') ||
+      target.closest('.figma-toolbar-properties') ||
+      target.closest('.figma-settings-panel') ||
+      target.closest('.shape-dropdown') ||
+      target.classList.contains('figma-tool-btn') ||
+      target.classList.contains('shape-btn') ||
+      target.classList.contains('props-input') ||
+      target.classList.contains('props-group')
     )) {
+      console.log('🔧 UI element clicked, ignoring drawing event');
       return; // 不处理UI元素上的点击
     }
 
@@ -331,6 +370,12 @@ export class DrawingEngine {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    // 如果正在编辑文本，点击其他地方完成编辑
+    if (this.isEditingText) {
+      this.finishTextEditing();
+      return;
+    }
     
     // 如果有选中对象，先检查是否点击了变换手柄
     if (this.selectedObject) {
@@ -371,6 +416,13 @@ export class DrawingEngine {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    // 性能优化：节流鼠标移动事件
+    const now = performance.now();
+    if (now - this.lastMouseMoveTime < this.mouseMoveThrottleMs) {
+      return;
+    }
+    this.lastMouseMoveTime = now;
     
     // 如果正在变换操作
     if (this.isTransforming) {
@@ -420,8 +472,8 @@ export class DrawingEngine {
       console.log('📝 Starting text editing for:', clickedObject);
       // 编辑现有文字
       this.startTextEditing(clickedObject);
-    } else if (this.mode === 'select') {
-      console.log('➕ Creating new text at point');
+    } else if (this.mode === 'select' && !clickedObject) {
+      console.log('➕ Creating new text at point (Figma style)');
       // Figma风格：在选择模式下双击空白处创建文字
       this.createTextAtPoint(x, y);
     }
@@ -459,6 +511,14 @@ export class DrawingEngine {
   private startDrawing(x: number, y: number): void {
     this.startPoint = { x, y };
     console.log('🎯 StartDrawing at:', x, y);
+    
+    // 对于select模式，不进行绘制操作
+    if (this.mode === 'select') {
+      console.log('🎯 Select mode - no drawing operation');
+      this.isDrawing = false;
+      this.startPoint = null;
+      return;
+    }
     
     // 开始新的绘制
     this.isDrawing = true;
@@ -570,19 +630,32 @@ export class DrawingEngine {
     this.currentPoint = { x, y }; // 记录当前位置
     
     if (this.isDragging && this.selectedObject) {
-      // 拖拽选中的对象
+      // 拖拽选中的对象 - 性能优化：减少重绘频率
       const newX = x - this.dragOffset.x;
       const newY = y - this.dragOffset.y;
       
-      console.log('🎯 Dragging object to:', newX, newY);
       this.moveObject(this.selectedObject, newX, newY);
-      this.redrawCanvas();
+      
+      // 只在必要时重绘，避免过度重绘
+      if (!this.redrawScheduled) {
+        this.redrawScheduled = true;
+        requestAnimationFrame(() => {
+          this.performRedraw();
+          this.redrawScheduled = false;
+        });
+      }
       return;
     }
     
-    // 使用插件系统处理继续绘制
+    // 对于需要拖拽的工具，显示实时预览
+    if (this.startPoint && this.previewImageData) {
+      this.showPreview(this.startPoint, { x, y });
+      return;
+    }
+    
+    // 使用插件系统处理继续绘制（主要用于不需要拖拽的工具）
     const tool = this.toolManager.getTool(this.mode);
-    if (tool && this.currentDrawingObject) {
+    if (tool && this.currentDrawingObject && !tool.requiresDrag) {
       const context = {
         ctx: this.ctx,
         canvas: this.canvas,
@@ -592,23 +665,7 @@ export class DrawingEngine {
         saveState: () => this.saveState()
       };
       
-      // 对于需要拖拽的工具，需要先恢复画布状态做预览
-      if (tool.requiresDrag && this.previewImageData) {
-        this.ctx.putImageData(this.previewImageData, 0, 0);
-        
-        // 设置预览样式（稍微半透明）
-        this.ctx.globalAlpha = 0.8;
-        this.ctx.strokeStyle = this.options.color;
-        this.ctx.fillStyle = this.options.color;
-        this.ctx.lineWidth = this.options.strokeWidth;
-      }
-      
       tool.continueDrawing({ x, y }, this.currentDrawingObject, context);
-      
-      // 恢复正常透明度
-      if (tool.requiresDrag) {
-        this.ctx.globalAlpha = 1.0;
-      }
     } else {
       // 后备方案：处理不在插件系统中的工具
       this.handleLegacyContinueDrawing(x, y);
@@ -850,53 +907,65 @@ export class DrawingEngine {
     this.ctx.fillStyle = this.options.color;
     this.ctx.lineWidth = this.options.strokeWidth;
     
-    // 使用插件系统进行预览绘制
-    const tool = this.toolManager.getTool(this.mode);
-    if (tool) {
-      // 创建临时对象用于预览
-      const tempObj: DrawingObject = {
-        id: 'temp-preview',
-        type: this.mode,
-        startPoint: start,
-        endPoint: end,
-        options: { ...this.options },
-        bounds: { x: 0, y: 0, width: 0, height: 0 }
-      };
-      
-      const context = {
-        ctx: this.ctx,
-        canvas: this.canvas,
-        options: this.options,
-        generateId: () => 'temp',
-        redrawCanvas: () => {},
-        saveState: () => {}
-      };
-      
-      tool.render(tempObj, context);
-    } else {
-      // 后备方案：处理不在插件系统中的工具
-      switch (this.mode) {
-        case 'line':
-          this.ctx.beginPath();
-          this.ctx.moveTo(start.x, start.y);
-          this.ctx.lineTo(end.x, end.y);
-          this.ctx.stroke();
-          break;
-          
-        case 'star':
-          const starRadius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-          this.drawStar(start.x, start.y, starRadius, 5);
-          break;
-          
-        case 'triangle':
-          this.drawTriangle(start, end);
-          break;
-          
-        case 'hand-drawn':
-          // 手绘风格矩形
-          this.drawHandDrawnRect(start, end);
-          break;
-      }
+    // 直接绘制形状，不使用插件系统进行预览（避免复杂性）
+    switch (this.mode) {
+      case 'rectangle':
+        const width = end.x - start.x;
+        const height = end.y - start.y;
+        this.ctx.beginPath();
+        this.ctx.rect(start.x, start.y, width, height);
+        if (this.options.hasFill) {
+          this.ctx.fill();
+        }
+        this.ctx.stroke();
+        break;
+        
+      case 'circle':
+        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        this.ctx.beginPath();
+        this.ctx.arc(start.x, start.y, radius, 0, Math.PI * 2);
+        if (this.options.hasFill) {
+          this.ctx.fill();
+        }
+        this.ctx.stroke();
+        break;
+        
+      case 'line':
+        this.ctx.beginPath();
+        this.ctx.moveTo(start.x, start.y);
+        this.ctx.lineTo(end.x, end.y);
+        this.ctx.stroke();
+        break;
+        
+      case 'arrow':
+        this.drawArrow(start.x, start.y, end.x, end.y);
+        break;
+        
+      case 'star':
+        const starRadius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        this.drawStar(start.x, start.y, starRadius, 5);
+        break;
+        
+      case 'triangle':
+        this.drawTriangle(start, end);
+        break;
+        
+      case 'hand-drawn':
+        // 手绘风格矩形
+        this.drawHandDrawnRect(start, end);
+        break;
+        
+      default:
+        // 默认绘制矩形
+        const defaultWidth = end.x - start.x;
+        const defaultHeight = end.y - start.y;
+        this.ctx.beginPath();
+        this.ctx.rect(start.x, start.y, defaultWidth, defaultHeight);
+        if (this.options.hasFill) {
+          this.ctx.fill();
+        }
+        this.ctx.stroke();
+        break;
     }
   }
 
@@ -1064,15 +1133,6 @@ export class DrawingEngine {
    * 在指定位置创建文字（Figma风格）
    */
   private createTextAtPoint(x: number, y: number): void {
-    // 计算占位符文本的边界框
-    this.ctx.save();
-    this.ctx.font = `${this.options.fontWeight || 'normal'} ${this.options.fontSize}px ${this.options.fontFamily || 'Arial'}`;
-    const placeholderText = '点击编辑文字';
-    const textMetrics = this.ctx.measureText(placeholderText);
-    const textWidth = textMetrics.width;
-    const textHeight = this.options.fontSize * 1.2;
-    this.ctx.restore();
-    
     const textObj: DrawingObject = {
       id: this.generateId(),
       type: 'text',
@@ -1080,10 +1140,10 @@ export class DrawingEngine {
       text: '', // 空文字，等待用户输入
       options: { ...this.options },
       bounds: { 
-        x: x - textWidth / 2, 
-        y: y - textHeight / 2, 
-        width: textWidth, 
-        height: textHeight 
+        x: x, 
+        y: y - this.options.fontSize / 2, 
+        width: 0, 
+        height: this.options.fontSize 
       }
     };
     
@@ -1224,21 +1284,47 @@ export class DrawingEngine {
   }
 
   public redrawCanvas(): void {
+    // 性能优化：避免频繁重绘
+    if (this.redrawScheduled) return;
+    
+    const now = performance.now();
+    const timeSinceLastRedraw = now - this.lastRedrawTime;
+    
+    // 如果距离上次重绘时间太短，延迟重绘
+    if (timeSinceLastRedraw < this.redrawThrottleMs) {
+      if (!this.redrawScheduled) {
+        this.redrawScheduled = true;
+        requestAnimationFrame(() => {
+          this.performRedraw();
+          this.redrawScheduled = false;
+        });
+      }
+      return;
+    }
+    
+    this.performRedraw();
+    this.lastRedrawTime = now;
+  }
+
+  private performRedraw(): void {
     // 清空画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    
     // 重新绘制所有对象
     this.drawingObjects.forEach(obj => {
       this.drawObject(obj);
     });
+    
     // 编辑状态下渲染占位符和光标
     this.renderTextEditingOverlay();
+    
     // 如果有选中的对象，绘制变换控制手柄
     if (this.selectedObject) {
       this.drawTransformHandles();
     }
   }
 
-  // 编辑状态下渲染占位符和光标
+  // 编辑状态下渲染文本和光标
   private renderTextEditingOverlay(): void {
     if (this.isEditingText && this.selectedObject && this.selectedObject.type === 'text') {
       const opts = this.selectedObject.options;
@@ -1248,24 +1334,51 @@ export class DrawingEngine {
       this.ctx.font = `${opts.fontWeight || 'normal'} ${opts.fontSize}px ${opts.fontFamily || 'Arial'}`;
       this.ctx.textAlign = opts.textAlign || 'left';
       this.ctx.textBaseline = 'middle';
-      // 占位符
-      if (!this.editingText || !this.editingText.trim()) {
-        this.ctx.globalAlpha = 0.5;
-        this.ctx.fillStyle = '#888888';
-        this.ctx.fillText('请输入文字…', x, y);
-      } else {
-        // 光标
-        const textBefore = this.editingText.slice(0, this.textCursorPosition);
-        const cursorX = x + this.ctx.measureText(textBefore).width;
-        this.ctx.globalAlpha = 1;
-        this.ctx.strokeStyle = opts.color || '#222';
-        if (this.textCursorVisible) {
-          this.ctx.beginPath();
-          this.ctx.moveTo(cursorX, y - opts.fontSize / 2);
-          this.ctx.lineTo(cursorX, y + opts.fontSize / 2);
-          this.ctx.stroke();
-        }
+      this.ctx.fillStyle = opts.color || '#222';
+      this.ctx.globalAlpha = 1;
+      
+      // 实时显示编辑的文本（只在有内容时渲染）
+      if (this.editingText) {
+        this.ctx.fillText(this.editingText, x, y);
       }
+      
+      // 绘制闪烁光标（即使文本为空也要显示）
+      const textBefore = this.editingText.slice(0, this.textCursorPosition);
+      let cursorX = x;
+      
+      // 根据文本对齐方式计算光标位置
+      if (opts.textAlign === 'center') {
+        const textWidth = this.ctx.measureText(this.editingText || '').width;
+        const textBeforeWidth = this.ctx.measureText(textBefore || '').width;
+        cursorX = x - textWidth / 2 + textBeforeWidth;
+      } else if (opts.textAlign === 'right') {
+        const textWidth = this.ctx.measureText(this.editingText || '').width;
+        const textBeforeWidth = this.ctx.measureText(textBefore || '').width;
+        cursorX = x - textWidth + textBeforeWidth;
+      } else {
+        // left对齐
+        cursorX = x + this.ctx.measureText(textBefore || '').width;
+      }
+      
+      // 确保光标可见（调试信息）
+      console.log('🔤 Rendering cursor:', {
+        editingText: this.editingText,
+        cursorPosition: this.textCursorPosition,
+        textBefore: textBefore,
+        cursorX: cursorX,
+        cursorVisible: this.textCursorVisible,
+        textAlign: opts.textAlign
+      });
+      
+      this.ctx.strokeStyle = opts.color || '#222';
+      this.ctx.lineWidth = 2;
+      if (this.textCursorVisible) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(cursorX, y - opts.fontSize / 2);
+        this.ctx.lineTo(cursorX, y + opts.fontSize / 2);
+        this.ctx.stroke();
+      }
+      
       this.ctx.restore();
     }
   }
@@ -1413,7 +1526,14 @@ export class DrawingEngine {
 
   setMode(mode: DrawingMode): void {
     this.mode = mode;
+    // 同时设置ToolManager的当前工具
+    this.toolManager.setCurrentTool(mode);
     console.log('✏️ Mode set to:', mode);
+    
+    // 调用模式变化回调
+    if (this.onModeChange) {
+      this.onModeChange(mode);
+    }
   }
 
   setModeChangeCallback(callback: (mode: DrawingMode) => void): void {
@@ -1545,306 +1665,38 @@ export class DrawingEngine {
   }
 
   private startTextEditing(textObj: DrawingObject): void {
-    console.log('📝 startTextEditing called for:', textObj);
-    
-    if (this.isEditingText) {
-      console.log('⚠️ Already editing text, ignoring');
-      return;
-    }
-    
+    if (this.isEditingText) return;
     this.isEditingText = true;
     this.selectedObject = textObj;
-    
     // 记录编辑状态
     this.editingText = textObj.text || '';
-    console.log('📝 Current text content:', this.editingText);
-    
-    // Figma风格：如果是空文本或占位符文本，全选准备替换
-    if (!this.editingText || this.editingText === '点击编辑文字') {
-      this.editingText = '';
-      this.textCursorPosition = 0;
-    } else {
-      // 如果有内容，将光标放到末尾
-      this.textCursorPosition = this.editingText.length;
-    }
-    
+    // 将光标放到末尾（即使是空文本也要显示光标）
+    this.textCursorPosition = this.editingText.length;
     this.textCursorVisible = true;
-    
-    // 开始光标闪烁动画
     this.startTextCursorBlink();
-    
-    // 确保canvas获得焦点以接收键盘事件
     this.canvas.focus();
-    console.log('🎯 Canvas focused, active element:', document.activeElement);
-    
-    // 重新绘制以显示编辑状态
     this.redrawCanvas();
-    
-    console.log('✅ Text editing started successfully');
-  }
-
-  private startTextCursorBlink(): void {
-    if (this.textCursorBlinkTimer) {
-      clearInterval(this.textCursorBlinkTimer);
-    }
-    
-    this.textCursorBlinkTimer = setInterval(() => {
-      if (this.isEditingText) {
-        this.textCursorVisible = !this.textCursorVisible;
-        this.redrawCanvas();
-      }
-    }, 500);
-  }
-
-  private stopTextCursorBlink(): void {
-    if (this.textCursorBlinkTimer) {
-      clearInterval(this.textCursorBlinkTimer);
-      this.textCursorBlinkTimer = null;
-    }
-    this.textCursorVisible = false;
-  }
-
-  private handleTextInput(e: KeyboardEvent): void {
-    e.preventDefault();
-    
-    const isCtrl = e.ctrlKey || e.metaKey;
-    
-    switch (e.key) {
-      case 'Enter':
-        this.finishTextEditing();
-        break;
-        
-      case 'Escape':
-        this.cancelTextEditing();
-        break;
-        
-      case 'Backspace':
-        if (this.textCursorPosition > 0) {
-          this.editingText = this.editingText.slice(0, this.textCursorPosition - 1) + 
-                            this.editingText.slice(this.textCursorPosition);
-          this.textCursorPosition--;
-          this.redrawCanvas();
-        }
-        break;
-        
-      case 'Delete':
-        if (this.textCursorPosition < this.editingText.length) {
-          this.editingText = this.editingText.slice(0, this.textCursorPosition) + 
-                            this.editingText.slice(this.textCursorPosition + 1);
-          this.redrawCanvas();
-        }
-        break;
-        
-      case 'ArrowLeft':
-        if (isCtrl) {
-          // Ctrl+Left: 移动到上一个单词
-          this.moveCursorToWordBoundary(false);
-        } else if (this.textCursorPosition > 0) {
-          this.textCursorPosition--;
-          this.redrawCanvas();
-        }
-        break;
-        
-      case 'ArrowRight':
-        if (isCtrl) {
-          // Ctrl+Right: 移动到下一个单词
-          this.moveCursorToWordBoundary(true);
-        } else if (this.textCursorPosition < this.editingText.length) {
-          this.textCursorPosition++;
-          this.redrawCanvas();
-        }
-        break;
-        
-      case 'Home':
-        this.textCursorPosition = 0;
-        this.redrawCanvas();
-        break;
-        
-      case 'End':
-        this.textCursorPosition = this.editingText.length;
-        this.redrawCanvas();
-        break;
-        
-      case 'a':
-        if (isCtrl) {
-          // Ctrl+A: 全选文本
-          this.textCursorPosition = this.editingText.length;
-          this.redrawCanvas();
-        } else {
-          this.insertCharacter('a');
-        }
-        break;
-        
-      default:
-        // 处理可打印字符
-        if (e.key.length === 1 && !isCtrl) {
-          this.insertCharacter(e.key);
-        }
-        break;
-    }
-  }
-
-  private insertCharacter(char: string): void {
-    this.editingText = this.editingText.slice(0, this.textCursorPosition) + 
-                      char + 
-                      this.editingText.slice(this.textCursorPosition);
-    this.textCursorPosition++;
-    this.redrawCanvas();
-  }
-
-  private moveCursorToWordBoundary(forward: boolean): void {
-    if (forward) {
-      // 移动到下一个单词的开始
-      while (this.textCursorPosition < this.editingText.length && 
-             this.editingText[this.textCursorPosition] !== ' ') {
-        this.textCursorPosition++;
-      }
-      while (this.textCursorPosition < this.editingText.length && 
-             this.editingText[this.textCursorPosition] === ' ') {
-        this.textCursorPosition++;
-      }
-    } else {
-      // 移动到上一个单词的开始
-      if (this.textCursorPosition > 0) {
-        this.textCursorPosition--;
-        while (this.textCursorPosition > 0 && 
-               this.editingText[this.textCursorPosition] === ' ') {
-          this.textCursorPosition--;
-        }
-        while (this.textCursorPosition > 0 && 
-               this.editingText[this.textCursorPosition - 1] !== ' ') {
-          this.textCursorPosition--;
-        }
-      }
-    }
-    this.redrawCanvas();
-  }
-
-  private drawTextCursor(textObj: DrawingObject): void {
-    if (!textObj) return;
-    
-    // 计算光标位置
-    this.ctx.save();
-    this.ctx.font = `${textObj.options.fontWeight || 'normal'} ${textObj.options.fontSize}px ${textObj.options.fontFamily || 'Arial'}`;
-    
-    // 测量光标前的文本宽度
-    const textBeforeCursor = this.editingText.slice(0, this.textCursorPosition);
-    const textMetrics = this.ctx.measureText(textBeforeCursor);
-    
-    // 计算光标的x位置（考虑文本对齐方式）
-    const textAlign = textObj.options.textAlign || 'center';
-    let cursorX = textObj.startPoint.x;
-    
-    if (textAlign === 'center') {
-      const fullTextWidth = this.ctx.measureText(this.editingText).width;
-      cursorX = textObj.startPoint.x - fullTextWidth / 2 + textMetrics.width;
-    } else if (textAlign === 'left') {
-      cursorX = textObj.startPoint.x + textMetrics.width;
-    } else if (textAlign === 'right') {
-      const fullTextWidth = this.ctx.measureText(this.editingText).width;
-      cursorX = textObj.startPoint.x - fullTextWidth + textMetrics.width;
-    }
-    
-    // 绘制光标线 - 使用更明显的样式
-    const fontSize = textObj.options.fontSize || 16;
-    const cursorHeight = fontSize * 1.1;
-    const cursorY = textObj.startPoint.y;
-    
-    this.ctx.strokeStyle = '#18a0fb'; // Figma蓝色
-    this.ctx.lineWidth = 2; // 更粗的光标
-    this.ctx.lineCap = 'round';
-    this.ctx.beginPath();
-    this.ctx.moveTo(cursorX, cursorY - cursorHeight / 2);
-    this.ctx.lineTo(cursorX, cursorY + cursorHeight / 2);
-    this.ctx.stroke();
-    
-    this.ctx.restore();
-  }
-
-  private drawTextEditingBackground(textObj: DrawingObject): void {
-    if (!textObj) return;
-    
-    this.ctx.save();
-    
-    // 计算文本边界
-    this.ctx.font = `${textObj.options.fontWeight || 'normal'} ${textObj.options.fontSize}px ${textObj.options.fontFamily || 'Arial'}`;
-    const text = this.editingText || '点击编辑文字';
-    const textMetrics = this.ctx.measureText(text);
-    const textWidth = textMetrics.width;
-    const fontSize = textObj.options.fontSize || 16;
-    const textHeight = fontSize * 1.2;
-    
-    // 计算背景矩形位置
-    const textAlign = textObj.options.textAlign || 'center';
-    let bgX = textObj.startPoint.x;
-    let bgY = textObj.startPoint.y - textHeight / 2;
-    
-    if (textAlign === 'center') {
-      bgX = textObj.startPoint.x - textWidth / 2;
-    } else if (textAlign === 'right') {
-      bgX = textObj.startPoint.x - textWidth;
-    }
-    
-    // 绘制半透明背景
-    this.ctx.fillStyle = 'rgba(24, 160, 251, 0.1)';
-    this.ctx.fillRect(bgX - 4, bgY - 2, textWidth + 8, textHeight + 4);
-    
-    // 绘制边框
-    this.ctx.strokeStyle = '#18a0fb';
-    this.ctx.lineWidth = 1;
-    this.ctx.setLineDash([2, 2]);
-    this.ctx.strokeRect(bgX - 4, bgY - 2, textWidth + 8, textHeight + 4);
-    this.ctx.setLineDash([]);
-    
-    this.ctx.restore();
+    console.log('🔤 Text editing started, cursor position:', this.textCursorPosition, 'editing text:', this.editingText);
   }
 
   private finishTextEditing(): void {
     if (!this.isEditingText || !this.selectedObject) return;
-    
-    // 防止重复调用
     this.isEditingText = false;
     this.stopTextCursorBlink();
     
-    // 获取编辑的文本
-    const newText = this.editingText.trim();
+    // 获取编辑的文本（不trim，保留用户输入的内容）
+    const newText = this.editingText;
     
-    // 如果文本为空，删除该文本对象（Figma风格）
-    if (!newText) {
-      const index = this.drawingObjects.indexOf(this.selectedObject);
-      if (index > -1) {
-        this.drawingObjects.splice(index, 1);
-      }
-      this.selectedObject = null;
-    } else {
-      // 更新文本内容
-      this.selectedObject.text = newText;
-      
-      // 重新计算边界框
-      this.ctx.save();
-      this.ctx.font = `${this.selectedObject.options.fontWeight || 'normal'} ${this.selectedObject.options.fontSize}px ${this.selectedObject.options.fontFamily || 'Arial'}`;
-      const textMetrics = this.ctx.measureText(newText);
-      const textWidth = textMetrics.width;
-      const textHeight = this.selectedObject.options.fontSize * 1.2; // 添加行高
-      this.ctx.restore();
-      
-      this.selectedObject.bounds = {
-        x: this.selectedObject.startPoint.x - textWidth / 2,
-        y: this.selectedObject.startPoint.y - textHeight / 2,
-        width: textWidth,
-        height: textHeight
-      };
-    }
+    // 更新文本对象
+    this.selectedObject.text = newText;
     
-    // 清理编辑状态
+    // 重新计算边界框
+    this.recalculateTextBounds(this.selectedObject);
+    
     this.editingText = '';
     this.textCursorPosition = 0;
-    
-    // 保存状态并重新绘制
     this.saveState();
     this.redrawCanvas();
-    
-    console.log('📝 Text editing finished:', newText);
   }
 
   private cancelTextEditing(): void {
@@ -2250,7 +2102,14 @@ export class DrawingEngine {
         break;
     }
 
-    this.redrawCanvas();
+    // 性能优化：使用requestAnimationFrame进行重绘
+    if (!this.redrawScheduled) {
+      this.redrawScheduled = true;
+      requestAnimationFrame(() => {
+        this.performRedraw();
+        this.redrawScheduled = false;
+      });
+    }
   }
 
   /**
@@ -2353,5 +2212,140 @@ export class DrawingEngine {
       this.cancelTextEditing();
     }
     console.log('💥 DrawingEngine destroyed');
+  }
+
+  private handleTextInput(e: KeyboardEvent): void {
+    e.preventDefault();
+    const isCtrl = e.ctrlKey || e.metaKey;
+    switch (e.key) {
+      case 'Escape':
+        this.finishTextEditing();
+        break;
+      case 'Backspace':
+        if (this.textCursorPosition > 0) {
+          this.editingText = this.editingText.slice(0, this.textCursorPosition - 1) + this.editingText.slice(this.textCursorPosition);
+          this.textCursorPosition--;
+          this.updateTextObject();
+        }
+        break;
+      case 'Delete':
+        if (this.textCursorPosition < this.editingText.length) {
+          this.editingText = this.editingText.slice(0, this.textCursorPosition) + this.editingText.slice(this.textCursorPosition + 1);
+          this.updateTextObject();
+        }
+        break;
+      case 'ArrowLeft':
+        if (isCtrl) {
+          // Ctrl+Left: 移动到上一个单词
+          this.moveCursorToWordBoundary(false);
+        } else if (this.textCursorPosition > 0) {
+          this.textCursorPosition--;
+          this.redrawCanvas();
+        }
+        break;
+      case 'ArrowRight':
+        if (isCtrl) {
+          // Ctrl+Right: 移动到下一个单词
+          this.moveCursorToWordBoundary(true);
+        } else if (this.textCursorPosition < this.editingText.length) {
+          this.textCursorPosition++;
+          this.redrawCanvas();
+        }
+        break;
+      case 'Home':
+        this.textCursorPosition = 0;
+        this.redrawCanvas();
+        break;
+      case 'End':
+        this.textCursorPosition = this.editingText.length;
+        this.redrawCanvas();
+        break;
+      case 'a':
+        if (isCtrl) {
+          // Ctrl+A: 全选文本
+          this.textCursorPosition = this.editingText.length;
+          this.redrawCanvas();
+        } else {
+          this.insertCharacter('a');
+        }
+        break;
+      default:
+        // 处理可打印字符
+        if (e.key.length === 1 && !isCtrl) {
+          this.insertCharacter(e.key);
+        }
+        break;
+    }
+  }
+
+  private insertCharacter(char: string): void {
+    this.editingText = this.editingText.slice(0, this.textCursorPosition) + char + this.editingText.slice(this.textCursorPosition);
+    this.textCursorPosition++;
+    this.updateTextObject();
+  }
+
+  private updateTextObject(): void {
+    if (this.selectedObject && this.isEditingText) {
+      // 实时更新文本对象
+      this.selectedObject.text = this.editingText;
+      // 重新计算边界框
+      this.recalculateTextBounds(this.selectedObject);
+      this.redrawCanvas();
+    }
+  }
+
+  private moveCursorToWordBoundary(forward: boolean): void {
+    if (forward) {
+      // 移动到下一个单词的开始
+      while (this.textCursorPosition < this.editingText.length && this.editingText[this.textCursorPosition] !== ' ') {
+        this.textCursorPosition++;
+      }
+      while (this.textCursorPosition < this.editingText.length && this.editingText[this.textCursorPosition] === ' ') {
+        this.textCursorPosition++;
+      }
+    } else {
+      // 移动到上一个单词的开始
+      if (this.textCursorPosition > 0) {
+        this.textCursorPosition--;
+        while (this.textCursorPosition > 0 && this.editingText[this.textCursorPosition] === ' ') {
+          this.textCursorPosition--;
+        }
+        while (this.textCursorPosition > 0 && this.editingText[this.textCursorPosition - 1] !== ' ') {
+          this.textCursorPosition--;
+        }
+      }
+    }
+    this.redrawCanvas();
+  }
+
+  private startTextCursorBlink(): void {
+    if (this.textCursorBlinkTimer) {
+      clearInterval(this.textCursorBlinkTimer);
+    }
+    
+    // 性能优化：使用requestAnimationFrame替代setInterval
+    let lastBlinkTime = 0;
+    const blinkInterval = 500; // 500ms
+    
+    const blink = (currentTime: number) => {
+      if (this.isEditingText) {
+        if (currentTime - lastBlinkTime >= blinkInterval) {
+          this.textCursorVisible = !this.textCursorVisible;
+          this.redrawCanvas();
+          lastBlinkTime = currentTime;
+        }
+        this.textCursorBlinkTimer = requestAnimationFrame(blink);
+      }
+    };
+    
+    this.textCursorBlinkTimer = requestAnimationFrame(blink);
+  }
+
+  private stopTextCursorBlink(): void {
+    if (this.textCursorBlinkTimer) {
+      cancelAnimationFrame(this.textCursorBlinkTimer);
+      this.textCursorBlinkTimer = null;
+    }
+    this.textCursorVisible = false;
   }
 }

@@ -6,6 +6,7 @@ export type { Point, DrawingObject, ToolContext, DrawingOptions } from './ToolPl
 export { ToolManager } from './ToolManager';
 
 // 具体工具实现
+export { SelectTool } from './SelectTool';
 export { PenTool } from './PenTool';
 export { RectangleTool } from './RectangleTool';
 export { CircleTool } from './CircleTool';
