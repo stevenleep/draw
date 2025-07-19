@@ -23,13 +23,13 @@ export class StarTool extends ToolPlugin {
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = point;
-    startObject.bounds = {
-      x: Math.min(startObject.startPoint.x, point.x),
-      y: Math.min(startObject.startPoint.y, point.y),
-      width: Math.abs(point.x - startObject.startPoint.x),
-      height: Math.abs(point.y - startObject.startPoint.y)
-    };
-    context.redrawCanvas();
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
+
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    startObject.endPoint = point;
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

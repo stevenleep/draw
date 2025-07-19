@@ -31,22 +31,13 @@ export class RectangleTool extends ToolPlugin {
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
-    
-    // 直接渲染，不需要调用renderPreview，因为DrawingEngine已经处理了预览设置
-    if (startObject.endPoint) {
-      const width = startObject.endPoint.x - startObject.startPoint.x;
-      const height = startObject.endPoint.y - startObject.startPoint.y;
-      
-      // 填充
-      if (startObject.options.hasFill && startObject.options.fillColor) {
-        context.ctx.fillStyle = startObject.options.fillColor;
-        context.ctx.fillRect(startObject.startPoint.x, startObject.startPoint.y, width, height);
-      }
-      
-      // 描边
-      context.ctx.strokeRect(startObject.startPoint.x, startObject.startPoint.y, width, height);
-    }
-    context.redrawCanvas();
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
+
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    startObject.endPoint = { ...point };
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

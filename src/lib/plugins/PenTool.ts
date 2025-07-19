@@ -18,17 +18,6 @@ export class PenTool extends ToolPlugin {
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
-    // 注意：不要在这里重复设置样式，DrawingEngine已经设置过了
-    
-    // 画一个起始点，让单击也能看到效果
-    context.ctx.beginPath();
-    context.ctx.arc(point.x, point.y, context.options.strokeWidth / 2, 0, Math.PI * 2);
-    context.ctx.fill();
-
-    // 开始新的路径用于连续线条
-    context.ctx.beginPath();
-    context.ctx.moveTo(point.x, point.y);
-
     // 创建绘图对象
     const obj: DrawingObject = {
       id: context.generateId(),
@@ -48,10 +37,20 @@ export class PenTool extends ToolPlugin {
     // 添加点到路径
     startObject.points.push({ ...point });
 
-    // 注意：不要重复设置样式，DrawingEngine已经设置过了
-    // 直接绘制到当前点
-    context.ctx.lineTo(point.x, point.y);
-    context.ctx.stroke();
+    // 更新边界框
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
+
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    if (!startObject.points) return null;
+
+    // 添加点到路径
+    startObject.points.push({ ...point });
+
+    // 更新边界框
+    startObject.bounds = this.calculateBounds(startObject, context);
+    
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

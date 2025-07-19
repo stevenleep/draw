@@ -77,6 +77,82 @@ export class TextEditingState {
     this.textCursorPosition--;
   }
 
+  deleteCharacterForward(): void {
+    if (!this.isEditingText || this.textCursorPosition >= this.editingText.length) return;
+    
+    this.editingText = 
+      this.editingText.slice(0, this.textCursorPosition) + 
+      this.editingText.slice(this.textCursorPosition + 1);
+  }
+
+  moveCursorUp(): void {
+    // 实现真正的多行光标向上移动
+    if (this.textCursorPosition === 0) return;
+    
+    const lines = this.editingText.split('\n');
+    let currentPos = 0;
+    let currentLine = 0;
+    let currentColumn = 0;
+    
+    // 找到当前光标位置所在的行和列
+    for (let i = 0; i < lines.length; i++) {
+      if (currentPos + lines[i].length >= this.textCursorPosition) {
+        currentLine = i;
+        currentColumn = this.textCursorPosition - currentPos;
+        break;
+      }
+      currentPos += lines[i].length + 1; // +1 for newline
+    }
+    
+    // 如果不在第一行，移动到上一行
+    if (currentLine > 0) {
+      const prevLine = lines[currentLine - 1];
+      const targetColumn = Math.min(currentColumn, prevLine.length);
+      let newPos = 0;
+      
+      // 计算上一行对应位置
+      for (let i = 0; i < currentLine - 1; i++) {
+        newPos += lines[i].length + 1;
+      }
+      newPos += targetColumn;
+      
+      this.textCursorPosition = newPos;
+    }
+  }
+
+  moveCursorDown(): void {
+    // 实现真正的多行光标向下移动
+    const lines = this.editingText.split('\n');
+    let currentPos = 0;
+    let currentLine = 0;
+    let currentColumn = 0;
+    
+    // 找到当前光标位置所在的行和列
+    for (let i = 0; i < lines.length; i++) {
+      if (currentPos + lines[i].length >= this.textCursorPosition) {
+        currentLine = i;
+        currentColumn = this.textCursorPosition - currentPos;
+        break;
+      }
+      currentPos += lines[i].length + 1; // +1 for newline
+    }
+    
+    // 如果不在最后一行，移动到下一行
+    if (currentLine < lines.length - 1) {
+      const nextLine = lines[currentLine + 1];
+      const targetColumn = Math.min(currentColumn, nextLine.length);
+      let newPos = 0;
+      
+      // 计算下一行对应位置
+      for (let i = 0; i < currentLine + 1; i++) {
+        newPos += lines[i].length + 1;
+      }
+      newPos += targetColumn;
+      
+      this.textCursorPosition = newPos;
+    }
+  }
+
   // 光标移动
   moveCursorLeft(): void {
     if (this.textCursorPosition > 0) {

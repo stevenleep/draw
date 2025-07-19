@@ -165,6 +165,10 @@ export class DrawingManager {
     return this.isActive;
   }
 
+  public isTextEditing(): boolean {
+    return this.drawingEngine?.isTextEditing() || false;
+  }
+
   public clear(): void {
     this.drawingEngine?.clear();
   }

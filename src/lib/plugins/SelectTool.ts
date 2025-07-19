@@ -27,6 +27,11 @@ export class SelectTool extends ToolPlugin {
     // 选择工具不需要继续绘制
   }
 
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    // 选择工具不需要更新绘制
+    return null;
+  }
+
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
     // 选择工具不需要完成绘制
     return startObject;

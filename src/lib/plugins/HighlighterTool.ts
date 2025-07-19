@@ -35,6 +35,13 @@ export class HighlighterTool extends ToolPlugin {
     };
   }
 
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    if (!startObject.points) startObject.points = [];
+    startObject.points.push(point);
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
+  }
+
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
     this.continueDrawing(point, startObject, context);
     return startObject;

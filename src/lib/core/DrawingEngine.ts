@@ -92,8 +92,14 @@ export class DrawingEngine {
     // 清空画布
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // 渲染所有对象
+    // 渲染所有已保存的对象
     this.renderer.renderObjects(this.drawingState.getObjects());
+    
+    // 渲染当前正在绘制的对象（预览）
+    const currentDrawingObject = this.eventHandler.getCurrentDrawingObject();
+    if (currentDrawingObject) {
+      this.renderer.renderObject(currentDrawingObject);
+    }
     
     // 渲染文本编辑覆盖层
     this.renderer.renderTextEditingOverlay(this.drawingState.getSelectedObject());

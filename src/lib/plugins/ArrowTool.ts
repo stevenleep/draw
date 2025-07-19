@@ -31,19 +31,13 @@ export class ArrowTool extends ToolPlugin {
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
-    
-    // 直接绘制箭头，不需要调用renderPreview
-    if (startObject.endPoint) {
-      // 绘制箭头线
-      context.ctx.beginPath();
-      context.ctx.moveTo(startObject.startPoint.x, startObject.startPoint.y);
-      context.ctx.lineTo(startObject.endPoint.x, startObject.endPoint.y);
-      context.ctx.stroke();
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
 
-      // 绘制箭头头部
-      this.drawArrowHead(startObject.startPoint, startObject.endPoint, context);
-    }
-    context.redrawCanvas();
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    startObject.endPoint = { ...point };
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

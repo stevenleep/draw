@@ -71,6 +71,12 @@ export class DrawingEventHandler {
 
   // 事件监听器设置
   private setupEventListeners(): void {
+    // 设置canvas为可聚焦
+    this.canvas.tabIndex = 0;
+    this.canvas.style.outline = 'none';
+    
+    console.log('🔧 Setting up event listeners for canvas');
+    
     this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
     this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
     this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
@@ -79,6 +85,8 @@ export class DrawingEventHandler {
     this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
     this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
     this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
+    
+    console.log('🔧 Event listeners set up, canvas tabIndex:', this.canvas.tabIndex);
   }
 
   // 鼠标事件处理
@@ -97,22 +105,44 @@ export class DrawingEventHandler {
       return;
     }
     
-    // 检查是否点击了对象
-    const clickedObject = this.getObjectAtPoint(x, y);
-    if (clickedObject) {
-      this.drawingState.setSelectedObject(clickedObject);
-      this.generateTransformHandles(clickedObject);
+      // 检查是否点击了对象
+  const clickedObject = this.getObjectAtPoint(x, y);
+  if (clickedObject) {
+    this.drawingState.setSelectedObject(clickedObject);
+    this.generateTransformHandles(clickedObject);
+    
+    // 如果是文本对象，区分选择和编辑状态
+    if (clickedObject.type === 'text') {
+      // 如果已经在编辑这个文本对象，不重复进入编辑模式
+      if (this.textEditingState.isEditing() && this.drawingState.getSelectedObject() === clickedObject) {
+        console.log('📝 Already editing this text object');
+        return;
+      }
       
-      // 开始拖拽
-      this.isDragging = true;
-      this.dragOffset = {
-        x: x - clickedObject.startPoint.x,
-        y: y - clickedObject.startPoint.y
-      };
+      // 如果之前在编辑其他文本对象，先完成编辑
+      if (this.textEditingState.isEditing()) {
+        console.log('📝 Finishing previous text editing');
+        this.finishTextEditing();
+      }
       
+      console.log('📝 Starting text editing for clicked object');
+      this.textEditingState.startEditing(clickedObject);
+      this.canvas.focus();
+      console.log('📝 Canvas focused, document.activeElement:', document.activeElement);
       if (this.onRedraw) this.onRedraw();
       return;
     }
+    
+    // 对于其他对象，开始拖拽
+    this.isDragging = true;
+    this.dragOffset = {
+      x: x - clickedObject.startPoint.x,
+      y: y - clickedObject.startPoint.y
+    };
+    
+    if (this.onRedraw) this.onRedraw();
+    return;
+  }
     
     // 清除选择
     this.drawingState.setSelectedObject(null);
@@ -174,6 +204,7 @@ export class DrawingEventHandler {
     if (clickedObject && clickedObject.type === 'text') {
       this.textEditingState.startEditing(clickedObject);
       this.drawingState.setSelectedObject(clickedObject);
+      this.canvas.focus(); // 确保canvas获得焦点
       if (this.onRedraw) this.onRedraw();
     } else if (this.mode === 'select' && !clickedObject) {
       this.createTextAtPoint(x, y);
@@ -182,12 +213,16 @@ export class DrawingEventHandler {
 
   // 键盘事件处理
   private handleKeyDown(e: KeyboardEvent): void {
+    console.log('⌨️ Key pressed:', e.key, 'Text editing:', this.textEditingState.isEditing());
+    
+    // 文本编辑状态优先级最高
     if (this.textEditingState.isEditing()) {
+      console.log('📝 Handling text input for key:', e.key);
       this.handleTextInput(e);
       return;
     }
     
-    // 快捷键处理
+    // 只有在非文本编辑状态下才处理快捷键
     switch (e.key) {
       case 'Delete':
       case 'Backspace':
@@ -260,14 +295,18 @@ export class DrawingEventHandler {
 
   // 绘制相关方法
   private startDrawing(x: number, y: number): void {
+    console.log('🎨 Starting drawing at:', { x, y, mode: this.mode });
+    
     this.startPoint = { x, y };
+    this.currentPoint = { x, y };
     this.isDrawing = true;
-    this.previewImageData = this.canvas.getContext('2d')?.getImageData(0, 0, this.canvas.width, this.canvas.height) || null;
+    this.currentPath = [{ x, y }];
     
     // 对于select模式，不进行绘制操作
     if (this.mode === 'select') {
       this.isDrawing = false;
       this.startPoint = null;
+      this.currentPoint = null;
       return;
     }
     
@@ -285,17 +324,21 @@ export class DrawingEventHandler {
       const startObject = tool.startDrawing({ x, y }, context);
       if (startObject) {
         this.currentDrawingObject = startObject;
+        console.log('🎨 Drawing object created:', startObject.type);
         
+        // 对于不需要拖拽的工具，立即完成绘制
         if (!tool.requiresDrag) {
           const finishedObject = tool.finishDrawing({ x, y }, startObject, context);
           if (finishedObject) {
             this.drawingState.addObject(finishedObject);
+            console.log('🎨 Object added to canvas:', finishedObject.type);
             
-            if ((finishedObject as any).__shouldStartEditing && finishedObject.type === 'text') {
-              delete (finishedObject as any).__shouldStartEditing;
+            // 处理文本编辑
+            if (finishedObject.type === 'text' && !finishedObject.text) {
               setTimeout(() => {
                 this.textEditingState.startEditing(finishedObject);
                 this.drawingState.setSelectedObject(finishedObject);
+                this.canvas.focus(); // 确保canvas获得焦点
                 this.onRedraw?.();
               }, 10);
             }
@@ -306,8 +349,19 @@ export class DrawingEventHandler {
           this.currentDrawingObject = null;
           this.isDrawing = false;
           this.startPoint = null;
+          this.currentPoint = null;
         }
+      } else {
+        console.warn('🎨 Failed to create drawing object for mode:', this.mode);
+        this.isDrawing = false;
+        this.startPoint = null;
+        this.currentPoint = null;
       }
+    } else {
+      console.warn('🎨 Tool not found for mode:', this.mode);
+      this.isDrawing = false;
+      this.startPoint = null;
+      this.currentPoint = null;
     }
   }
 
@@ -317,8 +371,36 @@ export class DrawingEventHandler {
       return;
     }
     
-    if (this.startPoint && this.previewImageData) {
-      this.showPreview(this.startPoint, { x, y });
+    if (!this.isDrawing || !this.currentDrawingObject || !this.startPoint) {
+      return;
+    }
+    
+    this.currentPoint = { x, y };
+    this.currentPath.push({ x, y });
+    
+    const tool = this.toolManager.getTool(this.mode);
+    if (tool) {
+      const context = {
+        ctx: this.canvas.getContext('2d')!,
+        canvas: this.canvas,
+        options: this.drawingState.getOptions(),
+        generateId: () => this.generateId(),
+        redrawCanvas: () => this.onRedraw?.(),
+        saveState: () => {}
+      };
+      
+      // 对于需要拖拽的工具，使用updateDrawing
+      if (tool.requiresDrag) {
+        const updatedObject = tool.updateDrawing({ x, y }, this.currentDrawingObject, context);
+        if (updatedObject) {
+          this.currentDrawingObject = updatedObject;
+          this.onRedraw?.();
+        }
+      } else {
+        // 对于不需要拖拽的工具（如画笔），使用continueDrawing来实时绘制
+        tool.continueDrawing({ x, y }, this.currentDrawingObject, context);
+        this.onRedraw?.();
+      }
     }
   }
 
@@ -347,6 +429,7 @@ export class DrawingEventHandler {
           setTimeout(() => {
             this.textEditingState.startEditing(finishedObject);
             this.drawingState.setSelectedObject(finishedObject);
+            this.canvas.focus(); // 确保canvas获得焦点
             this.onRedraw?.();
           }, 10);
         }
@@ -363,40 +446,82 @@ export class DrawingEventHandler {
   // 文本相关方法
   private handleTextInput(e: KeyboardEvent): void {
     e.preventDefault();
+    console.log('📝 Text input handling:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey, 'Key length:', e.key.length);
     
     switch (e.key) {
       case 'Enter':
-        this.finishTextEditing();
+        if (e.shiftKey) {
+          // Shift+Enter 换行
+          console.log('📝 Inserting newline');
+          this.textEditingState.insertCharacter('\n');
+          this.updateTextObject();
+          this.onRedraw?.();
+        } else {
+          // Enter 完成编辑
+          console.log('📝 Finishing text editing');
+          this.finishTextEditing();
+        }
         break;
       case 'Escape':
+        console.log('📝 Canceling text editing');
         this.cancelTextEditing();
         break;
       case 'ArrowLeft':
+        console.log('📝 Moving cursor left');
         this.textEditingState.moveCursorLeft();
         this.onRedraw?.();
         break;
       case 'ArrowRight':
+        console.log('📝 Moving cursor right');
         this.textEditingState.moveCursorRight();
         this.onRedraw?.();
         break;
+      case 'ArrowUp':
+        // 向上移动光标（多行文本）
+        console.log('📝 Moving cursor up');
+        this.textEditingState.moveCursorUp();
+        this.onRedraw?.();
+        break;
+      case 'ArrowDown':
+        // 向下移动光标（多行文本）
+        console.log('📝 Moving cursor down');
+        this.textEditingState.moveCursorDown();
+        this.onRedraw?.();
+        break;
       case 'Home':
+        console.log('📝 Moving cursor to start');
         this.textEditingState.moveCursorToStart();
         this.onRedraw?.();
         break;
       case 'End':
+        console.log('📝 Moving cursor to end');
         this.textEditingState.moveCursorToEnd();
         this.onRedraw?.();
         break;
       case 'Backspace':
+        console.log('📝 Deleting character backward');
         this.textEditingState.deleteCharacter();
         this.updateTextObject();
         this.onRedraw?.();
         break;
+      case 'Delete':
+        console.log('📝 Deleting character forward');
+        this.textEditingState.deleteCharacterForward();
+        this.updateTextObject();
+        this.onRedraw?.();
+        break;
       default:
-        if (e.key.length === 1) {
+        // 只处理真正的字符输入，排除功能键和控制键
+        console.log('📝 Default case - key:', e.key, 'length:', e.key.length, 'code:', e.code);
+        
+        // 检查是否是真正的字符输入
+        if (this.isCharacterInput(e)) {
+          console.log('📝 Inserting character:', e.key);
           this.textEditingState.insertCharacter(e.key);
           this.updateTextObject();
           this.onRedraw?.();
+        } else {
+          console.log('📝 Not a character input, ignoring');
         }
         break;
     }
@@ -429,6 +554,48 @@ export class DrawingEventHandler {
   // 工具方法
   private generateId(): string {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  // 检查是否是字符输入
+  private isCharacterInput(e: KeyboardEvent): boolean {
+    console.log('🔍 Checking character input:', e.key, 'length:', e.key.length, 'code:', e.code);
+    
+    // 排除控制键
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      console.log('🔍 Excluded due to control keys');
+      return false;
+    }
+    
+    // 排除已知的功能键
+    const functionKeys = [
+      'Enter', 'Escape', 'Tab', 'Backspace', 'Delete',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'PageUp', 'PageDown', 'Insert',
+      'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+      'CapsLock', 'NumLock', 'ScrollLock', 'Pause', 'PrintScreen'
+    ];
+    
+    if (functionKeys.includes(e.key)) {
+      console.log('🔍 Excluded due to function key:', e.key);
+      return false;
+    }
+    
+    // 检查是否是真正的字符输入
+    if (e.key.length === 1) {
+      // 单字符通常是真正的字符输入
+      console.log('🔍 Single character input:', e.key);
+      return true;
+    }
+    
+    // 处理中文字符输入和其他多字符输入
+    if (e.key.length > 1) {
+      // 中文字符通常长度大于1
+      console.log('🔍 Multi-character input (likely Chinese):', e.key);
+      return true;
+    }
+    
+    console.log('🔍 Not a character input');
+    return false;
   }
 
   private getObjectAtPoint(x: number, y: number): DrawingObject | null {
@@ -486,6 +653,7 @@ export class DrawingEventHandler {
     this.drawingState.addObject(textObject);
     this.textEditingState.startEditing(textObject);
     this.drawingState.setSelectedObject(textObject);
+    this.canvas.focus(); // 确保canvas获得焦点
     this.onRedraw?.();
   }
 
@@ -705,6 +873,10 @@ export class DrawingEventHandler {
   // 获取状态
   getTransformHandles(): TransformHandle[] {
     return this.transformHandles;
+  }
+
+  getCurrentDrawingObject(): DrawingObject | null {
+    return this.currentDrawingObject;
   }
 
   isTextEditing(): boolean {

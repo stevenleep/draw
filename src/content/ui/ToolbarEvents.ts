@@ -90,29 +90,44 @@ export class ToolbarEvents {
     const toolbar = this.toolbarManager.getToolbar();
     if (!toolbar) return;
 
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let toolbarStart = { x: 0, y: 0 };
+
     const handleMouseDown = (e: MouseEvent) => {
-      if (e.target !== toolbar && !toolbar.contains(e.target as Node)) return;
+      // 检查是否点击了按钮或其他交互元素
+      const target = e.target as HTMLElement;
+      if (target.closest('.figma-tool-btn') || target.closest('.props-input') || target.closest('.props-slider')) {
+        return;
+      }
       
-      this.isDragging = true;
-      this.dragStart = { x: e.clientX, y: e.clientY };
-      
-      const rect = toolbar.getBoundingClientRect();
-      this.toolbarStart = { x: rect.left, y: rect.top };
-      
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
-      e.preventDefault();
+      // 只有点击工具栏背景才能拖拽
+      if (target === toolbar || target.closest('.figma-toolbar-content')) {
+        isDragging = true;
+        dragStart = { x: e.clientX, y: e.clientY };
+        
+        const rect = toolbar.getBoundingClientRect();
+        toolbarStart = { x: rect.left, y: rect.top };
+        
+        toolbar.style.cursor = 'grabbing';
+        toolbar.style.userSelect = 'none';
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+        
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!this.isDragging) return;
+      if (!isDragging) return;
       
-      const deltaX = e.clientX - this.dragStart.x;
-      const deltaY = e.clientY - this.dragStart.y;
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
       
-      const newX = this.toolbarStart.x + deltaX;
-      const newY = this.toolbarStart.y + deltaY;
+      const newX = toolbarStart.x + deltaX;
+      const newY = toolbarStart.y + deltaY;
       
       // 边界检查
       const maxX = window.innerWidth - toolbar.offsetWidth;
@@ -123,11 +138,26 @@ export class ToolbarEvents {
     };
 
     const handleMouseUp = () => {
-      this.isDragging = false;
+      if (isDragging) {
+        isDragging = false;
+        toolbar.style.cursor = 'grab';
+        toolbar.style.userSelect = 'auto';
+        
+        // 保存位置
+        const rect = toolbar.getBoundingClientRect();
+        localStorage.setItem('drawing-toolbar-position', JSON.stringify({
+          x: rect.left,
+          y: rect.top
+        }));
+      }
+      
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
+    // 设置初始光标样式
+    toolbar.style.cursor = 'grab';
+    
     toolbar.addEventListener('mousedown', handleMouseDown);
   }
 
@@ -206,6 +236,20 @@ export class ToolbarEvents {
 
   private setupKeyboardEvents(): void {
     document.addEventListener('keydown', (e) => {
+      // 如果canvas是当前焦点元素，不处理工具栏快捷键
+      if (document.activeElement?.id === 'drawing-canvas-overlay') {
+        console.log('🔧 Canvas is focused, skipping toolbar keyboard event');
+        return;
+      }
+      
+      // 检查是否在文本编辑状态，如果是则不处理工具栏快捷键
+      if (this.toolbarManager.getDrawingManager().isTextEditing()) {
+        console.log('🔧 Skipping toolbar keyboard event due to text editing');
+        return;
+      }
+      
+      console.log('🔧 Toolbar keyboard event:', e.key, 'Drawing active:', this.toolbarManager.getDrawingManager().isDrawingActive());
+      
       if (!this.toolbarManager.getDrawingManager().isDrawingActive()) return;
 
       const isCtrl = e.ctrlKey || e.metaKey;

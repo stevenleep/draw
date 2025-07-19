@@ -31,27 +31,13 @@ export class CircleTool extends ToolPlugin {
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     startObject.endPoint = { ...point };
-    
-    // 直接渲染圆形，不需要调用renderPreview
-    if (startObject.endPoint) {
-      const radius = Math.sqrt(
-        (startObject.endPoint.x - startObject.startPoint.x) ** 2 + 
-        (startObject.endPoint.y - startObject.startPoint.y) ** 2
-      );
-      
-      context.ctx.beginPath();
-      context.ctx.arc(startObject.startPoint.x, startObject.startPoint.y, radius, 0, Math.PI * 2);
-      
-      // 填充
-      if (startObject.options.hasFill && startObject.options.fillColor) {
-        context.ctx.fillStyle = startObject.options.fillColor;
-        context.ctx.fill();
-      }
-      
-      // 描边
-      context.ctx.stroke();
-    }
-    context.redrawCanvas();
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
+
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    startObject.endPoint = { ...point };
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

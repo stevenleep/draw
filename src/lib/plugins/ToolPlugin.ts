@@ -55,6 +55,9 @@ export abstract class ToolPlugin {
   // 继续绘制（拖拽过程中）
   abstract continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void;
 
+  // 更新绘制（拖拽过程中）
+  abstract updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null;
+
   // 完成绘制
   abstract finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject;
 

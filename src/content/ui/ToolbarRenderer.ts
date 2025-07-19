@@ -13,17 +13,19 @@ export class ToolbarRenderer {
       left: 20px !important;
       z-index: 2147483647 !important;
       pointer-events: auto !important;
-      background: rgba(255, 255, 255, 0.95) !important;
-      backdrop-filter: blur(10px) !important;
-      border-radius: 12px !important;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
-      padding: 8px !important;
+      background: rgba(255, 255, 255, 0.98) !important;
+      backdrop-filter: blur(20px) !important;
+      border-radius: 16px !important;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+      padding: 12px !important;
       user-select: none !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-      border: 1px solid rgba(0, 0, 0, 0.1) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
       display: block !important;
       visibility: visible !important;
       opacity: 1 !important;
+      cursor: grab !important;
+      transition: all 0.2s ease !important;
     `;
     
     this.injectStyles();
@@ -324,11 +326,11 @@ export class ToolbarRenderer {
       }
 
       #drawing-toolbar-overlay .figma-tool-btn {
-        width: 32px !important;
-        height: 32px !important;
+        width: 36px !important;
+        height: 36px !important;
         border: none !important;
         background: transparent !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
         cursor: pointer !important;
         display: flex !important;
         align-items: center !important;
@@ -340,19 +342,23 @@ export class ToolbarRenderer {
         font-weight: normal !important;
         text-decoration: none !important;
         outline: none !important;
+        margin: 2px !important;
       }
 
       #drawing-toolbar-overlay .figma-tool-btn:hover {
-        background: rgba(0, 0, 0, 0.05) !important;
+        background: rgba(0, 0, 0, 0.06) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
       }
 
       #drawing-toolbar-overlay .figma-tool-btn.active {
-        background: #18a0fb !important;
+        background: linear-gradient(135deg, #18a0fb, #0d8ce6) !important;
         color: white !important;
+        box-shadow: 0 2px 8px rgba(24, 160, 251, 0.3) !important;
       }
 
       #drawing-toolbar-overlay .figma-tool-btn:active {
-        transform: scale(0.95) !important;
+        transform: scale(0.95) translateY(0) !important;
       }
 
       #drawing-toolbar-overlay .shape-group {

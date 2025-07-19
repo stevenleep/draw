@@ -22,17 +22,18 @@ export class EraserTool extends ToolPlugin {
   }
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
-    if (!startObject.points) startObject.points = [];
-    startObject.points.push(point);
-    // 更新边界
-    const xs = startObject.points.map(p => p.x);
-    const ys = startObject.points.map(p => p.y);
-    startObject.bounds = {
-      x: Math.min(...xs),
-      y: Math.min(...ys),
-      width: Math.max(...xs) - Math.min(...xs),
-      height: Math.max(...ys) - Math.min(...ys)
-    };
+    if (!startObject.points) return;
+
+    startObject.points.push({ ...point });
+    startObject.bounds = this.calculateBounds(startObject, context);
+  }
+
+  updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
+    if (!startObject.points) return null;
+    
+    startObject.points.push({ ...point });
+    startObject.bounds = this.calculateBounds(startObject, context);
+    return startObject;
   }
 
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {

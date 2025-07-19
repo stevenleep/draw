@@ -21,7 +21,7 @@ export class DrawingRenderer {
   }
 
   // 渲染单个对象
-  private renderObject(obj: DrawingObject): void {
+  public renderObject(obj: DrawingObject): void {
     this.ctx.save();
     
     // 应用变换
@@ -66,27 +66,40 @@ export class DrawingRenderer {
       return;
     }
 
-    const opts = selectedObject.options;
-    const x = selectedObject.startPoint.x;
-    const y = selectedObject.startPoint.y;
-    
-    this.ctx.save();
-    this.ctx.font = `${opts.fontWeight || 'normal'} ${opts.fontSize}px ${opts.fontFamily || 'Arial'}`;
-    this.ctx.textAlign = opts.textAlign || 'left';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = opts.color || '#222';
-    this.ctx.globalAlpha = 1;
-    
-    // 实时显示编辑的文本（只在有内容时渲染）
-    const editingText = this.textEditingState.getEditingText();
-    if (editingText) {
-      this.ctx.fillText(editingText, x, y);
+    // 使用TextTool的光标渲染方法
+    const textTool = this.toolManager.getTool('text');
+    if (textTool && 'renderCursor' in textTool) {
+      const context = {
+        ctx: this.ctx,
+        canvas: this.ctx.canvas,
+        options: selectedObject.options,
+        generateId: () => '',
+        redrawCanvas: () => {},
+        saveState: () => {}
+      };
+      
+      // 渲染编辑中的文本
+      this.ctx.save();
+      this.ctx.font = `${selectedObject.options.fontWeight || 'normal'} ${selectedObject.options.fontSize}px ${selectedObject.options.fontFamily || 'Arial'}`;
+      this.ctx.textAlign = selectedObject.options.textAlign || 'left';
+      this.ctx.textBaseline = 'top';
+      this.ctx.fillStyle = selectedObject.options.color || '#222';
+      this.ctx.globalAlpha = 1;
+      
+      const editingText = this.textEditingState.getEditingText();
+      if (editingText) {
+        this.renderMultilineText(editingText, selectedObject.startPoint.x, selectedObject.startPoint.y, selectedObject.options);
+      }
+      this.ctx.restore();
+      
+      // 渲染光标
+      (textTool as any).renderCursor(
+        selectedObject, 
+        this.textEditingState.getCursorPosition(), 
+        this.textEditingState.isCursorVisible(), 
+        context
+      );
     }
-    
-    // 绘制闪烁光标（即使文本为空也要显示）
-    this.renderTextCursor(editingText, x, y, opts);
-    
-    this.ctx.restore();
   }
 
   // 渲染选择框
@@ -181,33 +194,17 @@ export class DrawingRenderer {
     this.ctx.shadowOffsetY = 0;
   }
 
-  private renderTextCursor(editingText: string, x: number, y: number, opts: DrawingOptions): void {
-    const textBefore = editingText.slice(0, this.textEditingState.getCursorPosition());
-    let cursorX = x;
+  private renderMultilineText(text: string, x: number, y: number, opts: DrawingOptions): void {
+    const lines = text.split('\n');
+    const lineHeight = opts.fontSize * 1.2;
     
-    // 根据文本对齐方式计算光标位置
-    if (opts.textAlign === 'center') {
-      const textWidth = this.ctx.measureText(editingText || '').width;
-      const textBeforeWidth = this.ctx.measureText(textBefore || '').width;
-      cursorX = x - textWidth / 2 + textBeforeWidth;
-    } else if (opts.textAlign === 'right') {
-      const textWidth = this.ctx.measureText(editingText || '').width;
-      const textBeforeWidth = this.ctx.measureText(textBefore || '').width;
-      cursorX = x - textWidth + textBeforeWidth;
-    } else {
-      // left对齐
-      cursorX = x + this.ctx.measureText(textBefore || '').width;
-    }
-    
-    this.ctx.strokeStyle = opts.color || '#222';
-    this.ctx.lineWidth = 2;
-    if (this.textEditingState.isCursorVisible()) {
-      this.ctx.beginPath();
-      this.ctx.moveTo(cursorX, y - opts.fontSize / 2);
-      this.ctx.lineTo(cursorX, y + opts.fontSize / 2);
-      this.ctx.stroke();
-    }
+    lines.forEach((line, index) => {
+      const lineY = y + index * lineHeight;
+      this.ctx.fillText(line, x, lineY);
+    });
   }
+
+
 
   private renderTransformHandle(handle: TransformHandle): void {
     this.ctx.save();
