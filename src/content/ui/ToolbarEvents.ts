@@ -13,7 +13,9 @@ export class ToolbarEvents {
 
   public setupEvents(): void {
     const toolbar = this.toolbarManager.getToolbar();
-    if (!toolbar) return;
+    if (!toolbar) {
+      return;
+    }
 
     this.setupToolbarEvents();
     this.setupToolbarDragging();
@@ -23,7 +25,9 @@ export class ToolbarEvents {
 
   private setupToolbarEvents(): void {
     const toolbar = this.toolbarManager.getToolbar();
-    if (!toolbar) return;
+    if (!toolbar) {
+      return;
+    }
 
     // 工具栏按钮事件
     toolbar.querySelectorAll(".figma-tool-btn").forEach((btn) => {
@@ -88,7 +92,9 @@ export class ToolbarEvents {
 
   private setupToolbarDragging(): void {
     const toolbar = this.toolbarManager.getToolbar();
-    if (!toolbar) return;
+    if (!toolbar) {
+      return;
+    }
 
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
@@ -121,7 +127,9 @@ export class ToolbarEvents {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging) {
+        return;
+      }
 
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
@@ -166,7 +174,9 @@ export class ToolbarEvents {
 
   private setupPropertyEvents(): void {
     const toolbar = this.toolbarManager.getToolbar();
-    if (!toolbar) return;
+    if (!toolbar) {
+      return;
+    }
 
     // 颜色选择器
     const colorPicker = toolbar.querySelector("#color-picker") as HTMLInputElement;
@@ -253,7 +263,9 @@ export class ToolbarEvents {
 
       console.log("🔧 Toolbar keyboard event:", e.key, "Drawing active:", this.toolbarManager.getDrawingManager().isDrawingActive());
 
-      if (!this.toolbarManager.getDrawingManager().isDrawingActive()) return;
+      if (!this.toolbarManager.getDrawingManager().isDrawingActive()) {
+        return;
+      }
 
       const isCtrl = e.ctrlKey || e.metaKey;
       const isShift = e.shiftKey;

@@ -1,5 +1,5 @@
 import { DrawingManager } from "../core/DrawingManager";
-import type { DrawingMode, DrawingOptions } from "../../lib";
+import type { DrawingMode } from "../../lib";
 import { ToolbarRenderer } from "./ToolbarRenderer";
 import { ToolbarEvents } from "./ToolbarEvents";
 import { SettingsManager } from "./SettingsManager";
@@ -20,33 +20,20 @@ export class ToolbarManager {
   }
 
   public create(): void {
-    console.log("🔧 ToolbarManager: Starting toolbar creation...");
-
     try {
       this.toolbar = this.renderer.createToolbar();
-      console.log("🔧 ToolbarManager: Toolbar created successfully");
-
       this.events.setupEvents();
-      console.log("🔧 ToolbarManager: Events setup completed");
-
       this.settings.setupSettings(this.toolbar);
-      console.log("🔧 ToolbarManager: Settings setup completed");
-
       this.restorePosition();
-      console.log("🔧 ToolbarManager: Position restored");
 
       this.loadSettings();
-      console.log("🔧 ToolbarManager: Settings loaded");
 
       // 确保工具栏可见
       if (this.toolbar) {
         this.toolbar.style.display = "block";
         this.toolbar.style.visibility = "visible";
         this.toolbar.style.opacity = "1";
-        console.log("🔧 ToolbarManager: Toolbar visibility ensured");
       }
-
-      console.log("🔧 ToolbarManager: Toolbar creation completed successfully");
     } catch (error) {
       console.error("🔧 ToolbarManager: Error creating toolbar:", error);
       throw error;
@@ -78,7 +65,9 @@ export class ToolbarManager {
   }
 
   public updateModeUI(mode: DrawingMode): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     // 更新按钮状态
     this.toolbar.querySelectorAll(".figma-tool-btn").forEach((btn) => {
@@ -87,19 +76,25 @@ export class ToolbarManager {
 
     // 显示/隐藏文本属性
     const textProps = this.toolbar.querySelector("#text-props") as HTMLElement;
-    if (textProps) textProps.style.display = mode === "text" ? "block" : "none";
+    if (textProps) {
+      textProps.style.display = mode === "text" ? "block" : "none";
+    }
 
     this.syncShapeMainBtnActive(mode);
     this.syncShapeDropdownActive();
   }
 
   public togglePropertiesPanel(): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     const propsPanel = this.toolbar.querySelector(".figma-toolbar-properties") as HTMLElement;
     const textProps = this.toolbar.querySelector("#text-props") as HTMLElement;
 
-    if (!propsPanel) return;
+    if (!propsPanel) {
+      return;
+    }
 
     const isVisible = propsPanel.style.display !== "none";
     propsPanel.style.display = isVisible ? "none" : "block";
@@ -111,7 +106,9 @@ export class ToolbarManager {
   }
 
   public toggleSettingsPanel(): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     const settingsPanel = this.toolbar.querySelector(".figma-settings-panel") as HTMLElement;
     if (settingsPanel) {
@@ -120,7 +117,9 @@ export class ToolbarManager {
   }
 
   private syncPropsPanelActiveStates(): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     const options = this.drawingManager.getOptions();
 
@@ -138,7 +137,9 @@ export class ToolbarManager {
   }
 
   private syncShapeMainBtnActive(mode: string) {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     // 检查是否是形状模式
     const shapeModes = ["rectangle", "circle", "line", "arrow", "triangle", "star"];
@@ -158,7 +159,9 @@ export class ToolbarManager {
   }
 
   private syncShapeDropdownActive() {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
     const shapeDropdown = this.toolbar.querySelector(".shape-dropdown");
     if (shapeDropdown) {
       shapeDropdown.querySelectorAll(".shape-btn").forEach((btn) => {
@@ -168,7 +171,9 @@ export class ToolbarManager {
   }
 
   private restorePosition(): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     try {
       const position = JSON.parse(localStorage.getItem("drawing-toolbar-position") || "{}");
@@ -182,7 +187,9 @@ export class ToolbarManager {
   }
 
   private savePosition(): void {
-    if (!this.toolbar) return;
+    if (!this.toolbar) {
+      return;
+    }
 
     try {
       const rect = this.toolbar.getBoundingClientRect();

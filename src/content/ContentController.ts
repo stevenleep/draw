@@ -12,43 +12,26 @@ export class ContentController {
     this.drawingManager = new DrawingManager();
     this.messageHandler = new MessageHandler(this.drawingManager);
     this.toolbarManager = new ToolbarManager(this.drawingManager);
-
     this.initialize();
   }
 
   private async initialize(): Promise<void> {
-    if (this.isInitialized) return;
-
-    try {
-      try {
-        this.messageHandler.notifyBackgroundScript();
-      } catch (error) {
-        console.warn("🔧 ContentController: Background notification failed, continuing initialization:", error);
-      }
-
-      window.addEventListener("resize", () => {
-        this.drawingManager.handleResize();
-      });
-
-      window.addEventListener("beforeunload", () => {
-        this.cleanup();
-      });
-
-      this.isInitialized = true;
-    } catch (error) {
-      console.error("🔧 ContentController: Failed to initialize:", error);
-      this.isInitialized = true;
+    if (this.isInitialized) {
+      return;
     }
+    this.messageHandler.notifyBackgroundScript();
+    window.addEventListener("resize", () => {
+      this.drawingManager.handleResize();
+    });
+    window.addEventListener("beforeunload", () => {
+      this.cleanup();
+    });
+    this.isInitialized = true;
   }
 
   public async activate(): Promise<void> {
-    try {
-      await this.drawingManager.activate();
-      this.toolbarManager.create();
-    } catch (error) {
-      console.error("🔧 ContentController: Failed to activate drawing mode:", error);
-      throw error;
-    }
+    await this.drawingManager.activate();
+    this.toolbarManager.create();
   }
 
   public deactivate(): void {
@@ -60,9 +43,8 @@ export class ContentController {
     if (this.drawingManager.isDrawingActive()) {
       this.deactivate();
       return Promise.resolve();
-    } else {
-      return this.activate();
     }
+    return this.activate();
   }
 
   public getStatus(): boolean {

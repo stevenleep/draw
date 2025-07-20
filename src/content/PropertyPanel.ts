@@ -70,7 +70,9 @@ export class PropertyPanel {
   }
 
   private updatePanelContent(): void {
-    if (!this.panel || !this.currentObject) return;
+    if (!this.panel || !this.currentObject) {
+      return;
+    }
 
     const obj = this.currentObject;
     const isTextObject = obj.type === "text";
@@ -325,7 +327,9 @@ export class PropertyPanel {
   }
 
   private attachEventListeners(): void {
-    if (!this.panel || !this.currentObject) return;
+    if (!this.panel || !this.currentObject) {
+      return;
+    }
 
     const closeBtn = this.panel.querySelector("#close-panel");
     closeBtn?.addEventListener("click", () => this.hide());
@@ -360,7 +364,9 @@ export class PropertyPanel {
   }
 
   private handlePositionChange(): void {
-    if (!this.currentObject || !this.onPropertyChange) return;
+    if (!this.currentObject || !this.onPropertyChange) {
+      return;
+    }
 
     const posXInput = this.panel?.querySelector("#pos-x") as HTMLInputElement;
     const posYInput = this.panel?.querySelector("#pos-y") as HTMLInputElement;
@@ -378,26 +384,38 @@ export class PropertyPanel {
   }
 
   private handleStyleChange(): void {
-    if (!this.currentObject || !this.onPropertyChange) return;
+    if (!this.currentObject || !this.onPropertyChange) {
+      return;
+    }
 
     const changes: any = {};
 
     // 颜色
     const mainColorInput = this.panel?.querySelector("#main-color") as HTMLInputElement;
-    if (mainColorInput) changes.color = mainColorInput.value;
+    if (mainColorInput) {
+      changes.color = mainColorInput.value;
+    }
 
     const fillColorInput = this.panel?.querySelector("#fill-color") as HTMLInputElement;
-    if (fillColorInput) changes.fillColor = fillColorInput.value;
+    if (fillColorInput) {
+      changes.fillColor = fillColorInput.value;
+    }
 
     const hasFillInput = this.panel?.querySelector("#has-fill") as HTMLInputElement;
-    if (hasFillInput) changes.hasFill = hasFillInput.checked;
+    if (hasFillInput) {
+      changes.hasFill = hasFillInput.checked;
+    }
 
     // 线条
     const strokeWidthInput = this.panel?.querySelector("#stroke-width") as HTMLInputElement;
-    if (strokeWidthInput) changes.strokeWidth = parseInt(strokeWidthInput.value);
+    if (strokeWidthInput) {
+      changes.strokeWidth = parseInt(strokeWidthInput.value);
+    }
 
     const opacityInput = this.panel?.querySelector("#opacity") as HTMLInputElement;
-    if (opacityInput) changes.opacity = parseFloat(opacityInput.value);
+    if (opacityInput) {
+      changes.opacity = parseFloat(opacityInput.value);
+    }
 
     // 文字
     const textContentInput = this.panel?.querySelector("#text-content") as HTMLInputElement;
@@ -406,23 +424,35 @@ export class PropertyPanel {
     }
 
     const fontSizeInput = this.panel?.querySelector("#font-size") as HTMLInputElement;
-    if (fontSizeInput) changes.fontSize = parseInt(fontSizeInput.value);
+    if (fontSizeInput) {
+      changes.fontSize = parseInt(fontSizeInput.value);
+    }
 
     const fontFamilyInput = this.panel?.querySelector("#font-family") as HTMLSelectElement;
-    if (fontFamilyInput) changes.fontFamily = fontFamilyInput.value;
+    if (fontFamilyInput) {
+      changes.fontFamily = fontFamilyInput.value;
+    }
 
     const fontWeightInput = this.panel?.querySelector("#font-weight") as HTMLSelectElement;
-    if (fontWeightInput) changes.fontWeight = fontWeightInput.value;
+    if (fontWeightInput) {
+      changes.fontWeight = fontWeightInput.value;
+    }
 
     const textAlignInput = this.panel?.querySelector("#text-align") as HTMLSelectElement;
-    if (textAlignInput) changes.textAlign = textAlignInput.value as "left" | "center" | "right";
+    if (textAlignInput) {
+      changes.textAlign = textAlignInput.value as "left" | "center" | "right";
+    }
 
     // 阴影
     const shadowColorInput = this.panel?.querySelector("#shadow-color") as HTMLInputElement;
-    if (shadowColorInput) changes.shadowColor = shadowColorInput.value;
+    if (shadowColorInput) {
+      changes.shadowColor = shadowColorInput.value;
+    }
 
     const shadowBlurInput = this.panel?.querySelector("#shadow-blur") as HTMLInputElement;
-    if (shadowBlurInput) changes.shadowBlur = parseInt(shadowBlurInput.value);
+    if (shadowBlurInput) {
+      changes.shadowBlur = parseInt(shadowBlurInput.value);
+    }
 
     this.onPropertyChange({
       type: "style",

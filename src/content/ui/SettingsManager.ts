@@ -6,12 +6,16 @@ export class SettingsManager {
   }
 
   public setupSettings(toolbar: HTMLElement | null): void {
-    if (!toolbar) return;
+    if (!toolbar) {
+      return;
+    }
 
     const settingsBtn = toolbar.querySelector("#settings-btn") as HTMLButtonElement;
     const settingsPanel = toolbar.querySelector(".figma-settings-panel") as HTMLElement;
 
-    if (!settingsBtn || !settingsPanel) return;
+    if (!settingsBtn || !settingsPanel) {
+      return;
+    }
 
     settingsBtn.addEventListener("click", (e) => {
       e.preventDefault();
@@ -19,14 +23,12 @@ export class SettingsManager {
       this.toggleSettingsPanel(toolbar);
     });
 
-    // 点击其他地方关闭设置面板
     document.addEventListener("mousedown", (e) => {
       if (!settingsPanel.contains(e.target as Node) && !settingsBtn.contains(e.target as Node)) {
         settingsPanel.style.display = "none";
       }
     });
 
-    // 设置项事件
     const elements = {
       "#auto-save": (el: HTMLInputElement) => this.saveSetting("autoSave", el.checked),
       "#show-shortcuts": (el: HTMLInputElement) => {
@@ -51,42 +53,36 @@ export class SettingsManager {
   }
 
   public loadSettings(toolbar: HTMLElement | null): void {
-    try {
-      const settings = JSON.parse(localStorage.getItem("drawing-extension-settings") || "{}");
-
-      const elements = {
-        autoSave: "#auto-save",
-        showShortcuts: "#show-shortcuts",
-        enableSound: "#enable-sound",
-        canvasQuality: "#canvas-quality",
-      };
-
-      Object.entries(elements).forEach(([key, selector]) => {
-        const element = toolbar?.querySelector(selector) as HTMLInputElement | HTMLSelectElement;
-        if (element && settings[key] !== undefined) {
-          if (element.type === "checkbox") {
-            (element as HTMLInputElement).checked = settings[key];
-          } else {
-            (element as HTMLSelectElement).value = settings[key];
-          }
+    const settings = JSON.parse(localStorage.getItem("drawing-extension-settings") || "{}");
+    const elements = {
+      autoSave: "#auto-save",
+      showShortcuts: "#show-shortcuts",
+      enableSound: "#enable-sound",
+      canvasQuality: "#canvas-quality",
+    };
+    Object.entries(elements).forEach(([key, selector]) => {
+      const element = toolbar?.querySelector(selector) as HTMLInputElement | HTMLSelectElement;
+      if (element && settings[key] !== undefined) {
+        if (element.type === "checkbox") {
+          (element as HTMLInputElement).checked = settings[key];
+        } else {
+          (element as HTMLSelectElement).value = settings[key];
         }
-      });
+      }
+    });
 
-      if (settings.showShortcuts !== undefined) this.updateShortcutsVisibility(toolbar);
-      if (settings.canvasQuality) this.updateCanvasQuality(toolbar);
-    } catch (error) {
-      console.warn("Failed to load settings:", error);
+    if (settings.showShortcuts !== undefined) {
+      this.updateShortcutsVisibility(toolbar);
+    }
+    if (settings.canvasQuality) {
+      this.updateCanvasQuality(toolbar);
     }
   }
 
   private saveSetting(key: string, value: any): void {
-    try {
-      const settings = JSON.parse(localStorage.getItem("drawing-extension-settings") || "{}");
-      settings[key] = value;
-      localStorage.setItem("drawing-extension-settings", JSON.stringify(settings));
-    } catch (error) {
-      console.warn("Failed to save setting:", error);
-    }
+    const settings = JSON.parse(localStorage.getItem("drawing-extension-settings") || "{}");
+    settings[key] = value;
+    localStorage.setItem("drawing-extension-settings", JSON.stringify(settings));
   }
 
   private updateShortcutsVisibility(toolbar: HTMLElement | null): void {
@@ -113,7 +109,9 @@ export class SettingsManager {
   }
 
   private resetSettings(): void {
-    if (confirm("确定要重置所有设置吗？")) {
+    // eslint-disable-next-line no-alert
+    const confirmReset = confirm("确定要重置所有设置吗？这将清除所有自定义设置并恢复默认值。");
+    if (confirmReset) {
       ["drawing-extension-settings", "drawing-toolbar-position"].forEach((key) => localStorage.removeItem(key));
       location.reload();
     }
@@ -136,8 +134,8 @@ export class SettingsManager {
 
       this.showNotification("设置已导出", "success");
     } catch (error) {
-      console.error("Failed to export settings:", error);
       this.showNotification("导出失败", "error");
+      throw new Error(`导出设置时发生错误: ${error}`);
     }
   }
 
@@ -164,14 +162,11 @@ export class SettingsManager {
 
     notification.textContent = message;
     document.body.appendChild(notification);
-
-    // 动画显示
     requestAnimationFrame(() => {
       notification.style.opacity = "1";
       notification.style.transform = "translateY(0)";
     });
 
-    // 自动隐藏
     setTimeout(() => {
       notification.style.opacity = "0";
       notification.style.transform = "translateY(-10px)";
