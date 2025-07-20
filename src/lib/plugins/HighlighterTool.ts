@@ -24,7 +24,6 @@ export class HighlighterTool extends ToolPlugin {
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     if (!startObject.points) startObject.points = [];
     startObject.points.push(point);
-    // 更新边界
     const xs = startObject.points.map(p => p.x);
     const ys = startObject.points.map(p => p.y);
     startObject.bounds = {

@@ -1,5 +1,4 @@
 import { DrawingManager } from './DrawingManager';
-import type { DrawingMode, DrawingOptions } from '../../lib';
 
 export class MessageHandler {
   private drawingManager: DrawingManager;
@@ -10,7 +9,6 @@ export class MessageHandler {
   }
 
   private setupMessageListener(): void {
-    // 检查扩展上下文是否有效
     if (!chrome?.runtime?.onMessage) {
       console.warn('Chrome runtime not available, skipping message listener setup');
       return;
@@ -19,18 +17,16 @@ export class MessageHandler {
     try {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         this.handleMessage(message, sendResponse);
-        return true; // 异步响应
+        return true;
       });
       console.log('Message listener setup completed');
     } catch (error) {
       console.warn('Failed to setup message listener:', error);
-      // 这不是致命错误，扩展仍然可以工作
     }
   }
 
   private async handleMessage(message: any, sendResponse: (response: any) => void): Promise<void> {
     try {
-      // 验证消息格式
       if (!message || typeof message.action !== 'string') {
         console.warn('Invalid message format:', message);
         sendResponse({ success: false, error: 'Invalid message format' });
@@ -106,7 +102,6 @@ export class MessageHandler {
   }
 
   public notifyBackgroundScript(): void {
-    // 检查扩展上下文是否有效
     if (!chrome?.runtime?.id) {
       console.warn('Extension context not available, skipping background notification');
       return;
@@ -121,14 +116,12 @@ export class MessageHandler {
         }, (response) => {
           if (chrome.runtime.lastError) {
             console.warn('Background script notification failed:', chrome.runtime.lastError.message);
-            // 这不是致命错误，继续执行
           } else {
             console.log('Background script notified successfully');
           }
         });
       } catch (error) {
         console.warn('Failed to notify background script:', error);
-        // 这不是致命错误，继续执行
       }
     }, 100);
   }

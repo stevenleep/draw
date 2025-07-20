@@ -11,7 +11,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "strict": true,
-    "types": ["chrome", "vite/client", "svelte"]
+    "types": ["chrome", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "src/**/*.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

@@ -13,7 +13,7 @@ export class RectangleTool extends ToolPlugin {
   }
 
   get requiresDrag(): boolean {
-    return true; // 矩形需要拖拽来确定大小
+    return true;
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
@@ -52,7 +52,6 @@ export class RectangleTool extends ToolPlugin {
 
     context.ctx.save();
     
-    // 设置样式
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity;
@@ -61,7 +60,6 @@ export class RectangleTool extends ToolPlugin {
       context.ctx.setLineDash(obj.options.lineDash);
     }
 
-    // 设置阴影
     if (obj.options.shadowColor && obj.options.shadowBlur) {
       context.ctx.shadowColor = obj.options.shadowColor;
       context.ctx.shadowBlur = obj.options.shadowBlur;
@@ -72,13 +70,11 @@ export class RectangleTool extends ToolPlugin {
     const width = obj.endPoint.x - obj.startPoint.x;
     const height = obj.endPoint.y - obj.startPoint.y;
 
-    // 填充
     if (obj.options.hasFill && obj.options.fillColor) {
       context.ctx.fillStyle = obj.options.fillColor;
       context.ctx.fillRect(obj.startPoint.x, obj.startPoint.y, width, height);
     }
 
-    // 描边
     context.ctx.strokeRect(obj.startPoint.x, obj.startPoint.y, width, height);
 
     context.ctx.restore();
@@ -90,7 +86,7 @@ export class RectangleTool extends ToolPlugin {
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
-    context.ctx.globalAlpha = obj.options.opacity * 0.7; // 预览时稍微透明
+    context.ctx.globalAlpha = obj.options.opacity * 0.7;
 
     const width = obj.endPoint.x - obj.startPoint.x;
     const height = obj.endPoint.y - obj.startPoint.y;
@@ -107,7 +103,6 @@ export class RectangleTool extends ToolPlugin {
     const x2 = Math.max(obj.startPoint.x, obj.endPoint.x);
     const y2 = Math.max(obj.startPoint.y, obj.endPoint.y);
 
-    // 检查是否在边界内（包含边距）
     return point.x >= x1 - margin && 
            point.x <= x2 + margin &&
            point.y >= y1 - margin && 

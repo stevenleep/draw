@@ -1,5 +1,16 @@
-// 核心类型定义
-export type DrawingMode = 'select' | 'pen' | 'arrow' | 'rectangle' | 'circle' | 'text' | 'hand-drawn' | 'line' | 'eraser' | 'highlighter' | 'star' | 'triangle';
+export type DrawingMode =
+  | 'select'
+  | 'pen'
+  | 'arrow'
+  | 'rectangle'
+  | 'circle'
+  | 'text'
+  | 'hand-drawn'
+  | 'line'
+  | 'eraser'
+  | 'highlighter'
+  | 'star'
+  | 'triangle';
 
 export interface DrawingOptions {
   color: string;
@@ -29,13 +40,12 @@ export interface DrawingObject {
   text?: string;
   options: DrawingOptions;
   bounds: { x: number; y: number; width: number; height: number };
-  // 变换属性
   transform?: {
-    rotation: number; // 旋转角度（弧度）
-    scaleX: number;   // X轴缩放
-    scaleY: number;   // Y轴缩放
-    translateX: number; // X轴偏移
-    translateY: number; // Y轴偏移
+    rotation: number;
+    scaleX: number;
+    scaleY: number;
+    translateX: number;
+    translateY: number;
   };
 }
 
@@ -62,4 +72,4 @@ export interface TransformHandle {
 export interface Point {
   x: number;
   y: number;
-} 
+}

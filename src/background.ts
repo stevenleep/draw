@@ -1,10 +1,10 @@
-// Background script for Chrome extension
+
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
   
   console.log('🖱️ Extension icon clicked, tab ID:', tab.id);
   
-  // 尝试发送消息，如果失败则注入脚本
+
   const success = await sendMessageWithRetry(tab.id);
   
   if (!success) {
@@ -25,7 +25,7 @@ async function sendMessageWithRetry(tabId: number, maxRetries: number = 3): Prom
       console.log(`❌ Attempt ${attempt} failed:`, error);
       
       if (attempt === 1) {
-        // 第一次失败，尝试注入内容脚本
+
         try {
           console.log('💉 Injecting content script...');
           await chrome.scripting.executeScript({
@@ -34,7 +34,6 @@ async function sendMessageWithRetry(tabId: number, maxRetries: number = 3): Prom
           });
           
           console.log('✅ Content script injected, waiting for initialization...');
-          // 等待内容脚本初始化
           await new Promise(resolve => setTimeout(resolve, 500));
           
         } catch (injectionError) {
@@ -42,7 +41,7 @@ async function sendMessageWithRetry(tabId: number, maxRetries: number = 3): Prom
           return false;
         }
       } else if (attempt < maxRetries) {
-        // 后续失败，等待一下再重试
+
         await new Promise(resolve => setTimeout(resolve, 200 * attempt));
       }
     }
@@ -51,7 +50,7 @@ async function sendMessageWithRetry(tabId: number, maxRetries: number = 3): Prom
   return false;
 }
 
-// 监听内容脚本的消息
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('📨 Received message from content script:', message);
   

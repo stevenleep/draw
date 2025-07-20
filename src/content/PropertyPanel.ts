@@ -30,7 +30,7 @@ export class PropertyPanel {
   }
 
   private createPanel(position: { x: number; y: number }): void {
-    this.hide(); // 确保没有现有面板
+    this.hide();
 
     this.panel = document.createElement('div');
     this.panel.id = 'property-panel';
@@ -58,7 +58,6 @@ export class PropertyPanel {
 
     document.body.appendChild(this.panel);
 
-    // 添加点击外部关闭功能
     setTimeout(() => {
       document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
     }, 100);
@@ -93,7 +92,6 @@ export class PropertyPanel {
         ">✕</button>
       </div>
 
-      <!-- 基本操作 -->
       <div style="margin-bottom: 16px;">
         <div style="display: flex; gap: 8px;">
           <button id="duplicate-btn" style="
@@ -119,7 +117,6 @@ export class PropertyPanel {
         </div>
       </div>
 
-      <!-- 位置和大小 -->
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">位置</label>
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -150,7 +147,6 @@ export class PropertyPanel {
         </div>
       </div>
 
-      <!-- 颜色设置 -->
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">颜色</label>
         <div style="display: flex; gap: 8px; align-items: center;">
@@ -187,7 +183,6 @@ export class PropertyPanel {
         ` : ''}
       </div>
 
-      <!-- 线条设置 -->
       ${!isTextObject ? `
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">线条</label>
@@ -208,7 +203,6 @@ export class PropertyPanel {
       </div>
       ` : ''}
 
-      <!-- 文字设置 -->
       ${isTextObject ? `
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">文字</label>
@@ -286,7 +280,6 @@ export class PropertyPanel {
       </div>
       ` : ''}
 
-      <!-- 阴影效果 -->
       <div style="margin-bottom: 8px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">阴影效果</label>
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -318,11 +311,9 @@ export class PropertyPanel {
   private attachEventListeners(): void {
     if (!this.panel || !this.currentObject) return;
 
-    // 关闭按钮
     const closeBtn = this.panel.querySelector('#close-panel');
     closeBtn?.addEventListener('click', () => this.hide());
 
-    // 操作按钮
     const duplicateBtn = this.panel.querySelector('#duplicate-btn');
     duplicateBtn?.addEventListener('click', () => {
       if (this.currentObject && this.onPropertyChange) {
@@ -338,14 +329,12 @@ export class PropertyPanel {
       }
     });
 
-    // 位置输入
     const posXInput = this.panel.querySelector('#pos-x') as HTMLInputElement;
     const posYInput = this.panel.querySelector('#pos-y') as HTMLInputElement;
     [posXInput, posYInput].forEach(input => {
       input?.addEventListener('change', () => this.handlePositionChange());
     });
 
-    // 样式输入
     const styleInputs = this.panel.querySelectorAll('#main-color, #fill-color, #has-fill, #stroke-width, #opacity, #text-content, #font-size, #font-family, #font-weight, #text-align, #shadow-color, #shadow-blur');
     styleInputs.forEach(input => {
       input.addEventListener('change', () => this.handleStyleChange());

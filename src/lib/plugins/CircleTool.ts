@@ -13,7 +13,7 @@ export class CircleTool extends ToolPlugin {
   }
 
   get requiresDrag(): boolean {
-    return true; // 圆形需要拖拽来确定大小
+    return true;
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
@@ -52,7 +52,6 @@ export class CircleTool extends ToolPlugin {
 
     context.ctx.save();
     
-    // 设置样式
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity;
@@ -61,7 +60,6 @@ export class CircleTool extends ToolPlugin {
       context.ctx.setLineDash(obj.options.lineDash);
     }
 
-    // 设置阴影
     if (obj.options.shadowColor && obj.options.shadowBlur) {
       context.ctx.shadowColor = obj.options.shadowColor;
       context.ctx.shadowBlur = obj.options.shadowBlur;
@@ -69,23 +67,19 @@ export class CircleTool extends ToolPlugin {
       context.ctx.shadowOffsetY = obj.options.shadowOffsetY || 0;
     }
 
-    // 计算圆心和半径
     const centerX = (obj.startPoint.x + obj.endPoint.x) / 2;
     const centerY = (obj.startPoint.y + obj.endPoint.y) / 2;
     const radiusX = Math.abs(obj.endPoint.x - obj.startPoint.x) / 2;
     const radiusY = Math.abs(obj.endPoint.y - obj.startPoint.y) / 2;
 
-    // 绘制椭圆
     context.ctx.beginPath();
     context.ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
 
-    // 填充
     if (obj.options.hasFill && obj.options.fillColor) {
       context.ctx.fillStyle = obj.options.fillColor;
       context.ctx.fill();
     }
 
-    // 描边
     context.ctx.stroke();
 
     context.ctx.restore();
@@ -97,9 +91,8 @@ export class CircleTool extends ToolPlugin {
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
-    context.ctx.globalAlpha = obj.options.opacity * 0.7; // 预览时稍微透明
+    context.ctx.globalAlpha = obj.options.opacity * 0.7;
 
-    // 计算圆心和半径
     const centerX = (obj.startPoint.x + obj.endPoint.x) / 2;
     const centerY = (obj.startPoint.y + obj.endPoint.y) / 2;
     const radiusX = Math.abs(obj.endPoint.x - obj.startPoint.x) / 2;
@@ -120,7 +113,6 @@ export class CircleTool extends ToolPlugin {
     const radiusX = Math.abs(obj.endPoint.x - obj.startPoint.x) / 2;
     const radiusY = Math.abs(obj.endPoint.y - obj.startPoint.y) / 2;
 
-    // 椭圆内的点检测
     const dx = (point.x - centerX) / (radiusX + margin);
     const dy = (point.y - centerY) / (radiusY + margin);
 

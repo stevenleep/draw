@@ -1,4 +1,3 @@
-/* Content script styles */
 .drawing-canvas {
   position: fixed !important;
   top: 0 !important;
@@ -11,7 +10,6 @@
   cursor: crosshair !important;
 }
 
-/* 工具下拉菜单样式 */
 .tool-dropdown {
   position: relative !important;
 }

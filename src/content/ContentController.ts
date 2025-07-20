@@ -22,19 +22,19 @@ export class ContentController {
     try {
       console.log('🔧 ContentController: Starting initialization...');
       
-      // 尝试通知background script，但不阻止初始化
+
       try {
         this.messageHandler.notifyBackgroundScript();
       } catch (error) {
         console.warn('🔧 ContentController: Background notification failed, continuing initialization:', error);
       }
       
-      // 设置窗口大小变化监听
+
       window.addEventListener('resize', () => {
         this.drawingManager.handleResize();
       });
 
-      // 设置页面卸载时的清理
+
       window.addEventListener('beforeunload', () => {
         this.cleanup();
       });
@@ -43,7 +43,7 @@ export class ContentController {
       console.log('🔧 ContentController: Initialization completed successfully');
     } catch (error) {
       console.error('🔧 ContentController: Failed to initialize:', error);
-      // 即使初始化失败，我们也设置标志以避免重复尝试
+
       this.isInitialized = true;
     }
   }
@@ -89,16 +89,16 @@ export class ContentController {
     this.deactivate();
   }
 
-  // 公共调试方法
+
   public debugToggle(): Promise<void> {
     return this.toggle();
   }
 }
 
-// 创建全局实例
+
 const contentController = new ContentController();
 
-// 暴露到全局对象，方便调试
+
 (window as any).drawingExtension = {
   controller: contentController,
   activate: () => contentController.activate(),

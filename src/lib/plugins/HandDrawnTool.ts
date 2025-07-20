@@ -55,13 +55,11 @@ export class HandDrawnTool extends ToolPlugin {
     ctx.restore();
   }
 
-  // 手绘风格矩形
   private drawHandRect(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
     const x = Math.min(start.x, end.x);
     const y = Math.min(start.y, end.y);
     const w = Math.abs(end.x - start.x);
     const h = Math.abs(end.y - start.y);
-    // 画四条抖动的边
     this.drawJitterLine(ctx, x, y, x + w, y);
     this.drawJitterLine(ctx, x + w, y, x + w, y + h);
     this.drawJitterLine(ctx, x + w, y + h, x, y + h);

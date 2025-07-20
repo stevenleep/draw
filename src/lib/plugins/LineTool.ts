@@ -59,7 +59,6 @@ export class LineTool extends ToolPlugin {
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 4): boolean {
-    // 线段的点到线距离
     const { startPoint, endPoint } = obj;
     if (!startPoint || !endPoint) return false;
     const dx = endPoint.x - startPoint.x;

@@ -8,7 +8,6 @@ export class DrawingState {
   private historyStep: number = -1;
   private maxHistorySize: number = 50;
 
-  // 默认绘图选项
   private options: DrawingOptions = {
     color: '#222',
     strokeWidth: 2,
@@ -22,10 +21,9 @@ export class DrawingState {
   };
 
   constructor() {
-    this.saveState(); // 保存初始状态
+    this.saveState();
   }
 
-  // 对象管理
   addObject(obj: DrawingObject): void {
     this.drawingObjects.push(obj);
     this.saveState();
@@ -48,7 +46,6 @@ export class DrawingState {
     this.saveState();
   }
 
-  // 选择管理
   setSelectedObject(obj: DrawingObject | null): void {
     this.selectedObject = obj;
   }
@@ -57,7 +54,6 @@ export class DrawingState {
     return this.selectedObject;
   }
 
-  // 剪贴板管理
   setClipboard(obj: DrawingObject | null): void {
     this.clipboard = obj;
   }
@@ -66,7 +62,6 @@ export class DrawingState {
     return this.clipboard;
   }
 
-  // 选项管理
   getOptions(): DrawingOptions {
     return { ...this.options };
   }
@@ -75,16 +70,12 @@ export class DrawingState {
     this.options = { ...this.options, ...newOptions };
   }
 
-  // 历史记录管理
   private saveState(): void {
-    // 移除当前步骤之后的所有历史记录
     this.history = this.history.slice(0, this.historyStep + 1);
     
-    // 添加新状态
     this.history.push(this.cloneObjectArray(this.drawingObjects));
     this.historyStep++;
     
-    // 限制历史记录大小
     if (this.history.length > this.maxHistorySize) {
       this.history.shift();
       this.historyStep--;
@@ -125,7 +116,6 @@ export class DrawingState {
     return this.historyStep < this.history.length - 1;
   }
 
-  // 工具方法
   private cloneObjectArray(objects: DrawingObject[]): DrawingObject[] {
     return objects.map(obj => this.cloneObject(obj));
   }
@@ -144,7 +134,6 @@ export class DrawingState {
     };
   }
 
-  // 清空所有状态
   clear(): void {
     this.drawingObjects = [];
     this.selectedObject = null;

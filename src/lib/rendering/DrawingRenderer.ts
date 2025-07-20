@@ -13,30 +13,23 @@ export class DrawingRenderer {
     this.textEditingState = textEditingState;
   }
 
-  // 渲染所有对象
   renderObjects(objects: DrawingObject[]): void {
     objects.forEach(obj => {
       this.renderObject(obj);
     });
   }
 
-  // 渲染单个对象
   public renderObject(obj: DrawingObject): void {
     this.ctx.save();
     
-    // 应用变换
     this.applyTransform(obj);
     
-    // 设置基本样式
     this.setBasicStyles(obj.options);
     
-    // 设置线条样式
     this.setLineStyles(obj.options);
     
-    // 设置阴影
     this.setShadowStyles(obj.options);
     
-    // 使用插件系统渲染对象
     const tool = this.toolManager.getTool(obj.type);
     if (tool) {
       const context = {
@@ -50,23 +43,19 @@ export class DrawingRenderer {
       
       tool.render(obj, context);
     } else {
-      // 后备方案：处理不在插件系统中的工具
       this.renderLegacyObject(obj);
     }
     
-    // 重置样式
     this.resetStyles();
     
     this.ctx.restore();
   }
 
-  // 渲染文本编辑覆盖层
   renderTextEditingOverlay(selectedObject: DrawingObject | null): void {
     if (!this.textEditingState.isEditing() || !selectedObject || selectedObject.type !== 'text') {
       return;
     }
 
-    // 使用TextTool的光标渲染方法
     const textTool = this.toolManager.getTool('text');
     if (textTool && 'renderCursor' in textTool) {
       const context = {
@@ -78,7 +67,6 @@ export class DrawingRenderer {
         saveState: () => {}
       };
       
-      // 渲染编辑中的文本
       this.ctx.save();
       this.ctx.font = `${selectedObject.options.fontWeight || 'normal'} ${selectedObject.options.fontSize}px ${selectedObject.options.fontFamily || 'Arial'}`;
       this.ctx.textAlign = selectedObject.options.textAlign || 'left';
@@ -92,7 +80,6 @@ export class DrawingRenderer {
       }
       this.ctx.restore();
       
-      // 渲染光标
       (textTool as any).renderCursor(
         selectedObject, 
         this.textEditingState.getCursorPosition(), 
@@ -102,7 +89,6 @@ export class DrawingRenderer {
     }
   }
 
-  // 渲染选择框
   renderSelectionBox(obj: DrawingObject): void {
     const padding = 10;
     this.ctx.save();
@@ -118,36 +104,29 @@ export class DrawingRenderer {
     this.ctx.restore();
   }
 
-  // 渲染变换控制手柄
   renderTransformHandles(handles: TransformHandle[]): void {
     handles.forEach(handle => {
       this.renderTransformHandle(handle);
     });
   }
 
-  // 私有方法
   private applyTransform(obj: DrawingObject): void {
     if (obj.transform && (obj.transform.rotation !== 0 || obj.transform.scaleX !== 1 || obj.transform.scaleY !== 1 || obj.transform.translateX !== 0 || obj.transform.translateY !== 0)) {
       const centerX = obj.bounds.x + obj.bounds.width / 2;
       const centerY = obj.bounds.y + obj.bounds.height / 2;
       
-      // 平移到中心点
       this.ctx.translate(centerX, centerY);
       
-      // 应用旋转
       if (obj.transform.rotation !== 0) {
         this.ctx.rotate(obj.transform.rotation);
       }
       
-      // 应用缩放
       if (obj.transform.scaleX !== 1 || obj.transform.scaleY !== 1) {
         this.ctx.scale(obj.transform.scaleX, obj.transform.scaleY);
       }
       
-      // 平移回原点
       this.ctx.translate(-centerX, -centerY);
       
-      // 应用额外的平移
       if (obj.transform.translateX !== 0 || obj.transform.translateY !== 0) {
         this.ctx.translate(obj.transform.translateX, obj.transform.translateY);
       }
@@ -212,7 +191,6 @@ export class DrawingRenderer {
     this.ctx.strokeStyle = '#0066ff';
     this.ctx.lineWidth = 2;
     
-    // 绘制手柄
     this.ctx.fillRect(handle.x, handle.y, handle.width, handle.height);
     this.ctx.strokeRect(handle.x, handle.y, handle.width, handle.height);
     

@@ -21,14 +21,12 @@ export class ToolManager {
   }
 
   private registerDefaultTools(): void {
-    // 注册默认工具
     this.registerTool(new SelectTool());
     this.registerTool(new PenTool());
     this.registerTool(new RectangleTool());
     this.registerTool(new CircleTool());
     this.registerTool(new TextTool());
     this.registerTool(new ArrowTool());
-    // 注册业务工具
     this.registerTool(new LineTool());
     this.registerTool(new HandDrawnTool());
     this.registerTool(new EraserTool());
@@ -46,7 +44,6 @@ export class ToolManager {
     const success = this.tools.delete(type);
     if (success) {
       console.log(`🗑️ Unregistered tool: ${type}`);
-      // 如果删除的是当前工具，重置当前工具
       if (this.currentTool && this.currentTool.type === type) {
         this.currentTool = null;
       }
@@ -81,7 +78,6 @@ export class ToolManager {
     return Array.from(this.tools.keys());
   }
 
-  // 工具操作代理方法
   public startDrawing(point: Point, context: ToolContext): DrawingObject | null {
     if (!this.currentTool) {
       console.warn('⚠️ No current tool selected');
@@ -130,7 +126,6 @@ export class ToolManager {
     return this.currentTool.requiresDrag;
   }
 
-  // 获取工具信息用于UI构建
   public getToolsForUI(): Array<{
     type: string;
     name: string;
@@ -147,17 +142,14 @@ export class ToolManager {
     }));
   }
 
-  // 检查工具是否存在
   public hasTool(type: string): boolean {
     return this.tools.has(type);
   }
 
-  // 获取工具数量
   public getToolCount(): number {
     return this.tools.size;
   }
 
-  // 清空所有工具（谨慎使用）
   public clearAllTools(): void {
     this.tools.clear();
     this.currentTool = null;

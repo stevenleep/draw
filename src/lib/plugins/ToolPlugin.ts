@@ -11,7 +11,7 @@ export type DrawingOptions = EngineDrawingOptions;
 
 export interface DrawingObject {
   id: string;
-  type: DrawingMode; // 使用DrawingMode而不是string
+  type: DrawingMode;
   startPoint: Point;
   endPoint?: Point;
   points?: Point[];
@@ -38,7 +38,7 @@ export interface ToolContext {
 
 export abstract class ToolPlugin {
   public readonly name: string;
-  public readonly type: DrawingMode; // 改为DrawingMode类型
+  public readonly type: DrawingMode;
   public readonly icon: string;
   public readonly title: string;
 
@@ -49,36 +49,26 @@ export abstract class ToolPlugin {
     this.title = title;
   }
 
-  // 开始绘制
   abstract startDrawing(point: Point, context: ToolContext): DrawingObject | null;
 
-  // 继续绘制（拖拽过程中）
   abstract continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void;
 
-  // 更新绘制（拖拽过程中）
   abstract updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null;
 
-  // 完成绘制
   abstract finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject;
 
-  // 渲染对象
   abstract render(obj: DrawingObject, context: ToolContext): void;
 
-  // 检测点击是否在对象内
   abstract hitTest(point: Point, obj: DrawingObject, margin?: number): boolean;
 
-  // 计算对象边界框
   abstract calculateBounds(obj: DrawingObject, context: ToolContext): { x: number; y: number; width: number; height: number };
 
-  // 是否需要拖拽才能创建（如矩形、圆形需要拖拽，文本、画笔不需要）
   abstract get requiresDrag(): boolean;
 
-  // 获取工具图标SVG
   getIconSVG(): string {
     return this.icon;
   }
 
-  // 获取工具标题
   getTitle(): string {
     return this.title;
   }

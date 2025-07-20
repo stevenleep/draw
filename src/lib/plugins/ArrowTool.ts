@@ -13,7 +13,7 @@ export class ArrowTool extends ToolPlugin {
   }
 
   get requiresDrag(): boolean {
-    return true; // 箭头需要拖拽来确定方向和长度
+    return true;
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
@@ -52,7 +52,6 @@ export class ArrowTool extends ToolPlugin {
 
     context.ctx.save();
     
-    // 设置样式
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.fillStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
@@ -64,7 +63,6 @@ export class ArrowTool extends ToolPlugin {
       context.ctx.setLineDash(obj.options.lineDash);
     }
 
-    // 设置阴影
     if (obj.options.shadowColor && obj.options.shadowBlur) {
       context.ctx.shadowColor = obj.options.shadowColor;
       context.ctx.shadowBlur = obj.options.shadowBlur;
@@ -72,13 +70,11 @@ export class ArrowTool extends ToolPlugin {
       context.ctx.shadowOffsetY = obj.options.shadowOffsetY || 0;
     }
 
-    // 绘制箭头线
     context.ctx.beginPath();
     context.ctx.moveTo(obj.startPoint.x, obj.startPoint.y);
     context.ctx.lineTo(obj.endPoint.x, obj.endPoint.y);
     context.ctx.stroke();
 
-    // 绘制箭头头部
     this.drawArrowHead(obj.startPoint, obj.endPoint, context);
 
     context.ctx.restore();
@@ -94,13 +90,11 @@ export class ArrowTool extends ToolPlugin {
     context.ctx.globalAlpha = obj.options.opacity * 0.7;
     context.ctx.lineCap = 'round';
 
-    // 绘制箭头线
     context.ctx.beginPath();
     context.ctx.moveTo(obj.startPoint.x, obj.startPoint.y);
     context.ctx.lineTo(obj.endPoint.x, obj.endPoint.y);
     context.ctx.stroke();
 
-    // 绘制箭头头部
     this.drawArrowHead(obj.startPoint, obj.endPoint, context);
 
     context.ctx.restore();
@@ -116,11 +110,9 @@ export class ArrowTool extends ToolPlugin {
     const arrowLength = Math.min(20, length / 3);
     const arrowWidth = arrowLength * 0.6;
 
-    // 单位向量
     const ux = dx / length;
     const uy = dy / length;
 
-    // 箭头头部的三个点
     const p1 = {
       x: end.x,
       y: end.y
@@ -136,7 +128,6 @@ export class ArrowTool extends ToolPlugin {
       y: end.y - arrowLength * uy + arrowWidth * ux
     };
 
-    // 绘制箭头头部
     context.ctx.beginPath();
     context.ctx.moveTo(p1.x, p1.y);
     context.ctx.lineTo(p2.x, p2.y);
@@ -148,7 +139,6 @@ export class ArrowTool extends ToolPlugin {
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
     if (!obj.endPoint) return false;
 
-    // 检查是否接近箭头线
     const distance = this.distanceToLineSegment(point, obj.startPoint, obj.endPoint);
     return distance <= margin;
   }
@@ -163,7 +153,7 @@ export class ArrowTool extends ToolPlugin {
     const x2 = Math.max(obj.startPoint.x, obj.endPoint.x);
     const y2 = Math.max(obj.startPoint.y, obj.endPoint.y);
 
-    const arrowLength = 20; // 箭头头部长度
+    const arrowLength = 20;
     const strokeWidth = obj.options.strokeWidth || 1;
     const padding = Math.max(arrowLength, strokeWidth);
 

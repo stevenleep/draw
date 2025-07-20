@@ -32,8 +32,7 @@ export class DrawingManager {
   private async loadLibraries(): Promise<void> {
     if (this.librariesLoaded) return;
     try {
-      // 这里可以加载任何需要的库
-      // 目前没有外部依赖，直接设置为已加载
+
       this.librariesLoaded = true;
       console.log('🔧 DrawingManager: Libraries loaded successfully');
     } catch (error) {
@@ -50,7 +49,7 @@ export class DrawingManager {
       this.createCanvas();
       console.log('🔧 DrawingManager: Canvas created');
       
-      // 等待Canvas完全准备好，然后创建DrawingEngine
+
       await new Promise<void>((resolve) => {
         setTimeout(() => {
           try {
@@ -63,14 +62,14 @@ export class DrawingManager {
             console.error('🔧 DrawingManager: Failed to create DrawingEngine:', error);
             throw error;
           }
-        }, 100); // 减少延迟时间
+        }, 100);
       });
       
       this.isActive = true;
       console.log('🔧 DrawingManager: Activation completed successfully');
     } catch (error) {
       console.error('🔧 DrawingManager: Failed to activate drawing mode:', error);
-      // 清理失败的激活
+
       this.deactivate();
       throw error;
     }
@@ -96,7 +95,7 @@ export class DrawingManager {
       console.log('🔧 DrawingManager: Deactivation completed successfully');
     } catch (error) {
       console.error('🔧 DrawingManager: Error during deactivation:', error);
-      // 强制清理
+
       this.isActive = false;
       this.drawingEngine = null;
       this.canvas = null;

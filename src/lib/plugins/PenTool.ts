@@ -14,11 +14,10 @@ export class PenTool extends ToolPlugin {
   }
 
   get requiresDrag(): boolean {
-    return false; // 画笔不需要拖拽，直接开始绘制
+    return false;
   }
 
   startDrawing(point: Point, context: ToolContext): DrawingObject {
-    // 创建绘图对象
     const obj: DrawingObject = {
       id: context.generateId(),
       type: this.type,
@@ -27,29 +26,19 @@ export class PenTool extends ToolPlugin {
       options: { ...context.options },
       bounds: { x: point.x, y: point.y, width: 0, height: 0 }
     };
-
     return obj;
   }
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
     if (!startObject.points) return;
-
-    // 添加点到路径
     startObject.points.push({ ...point });
-
-    // 更新边界框
     startObject.bounds = this.calculateBounds(startObject, context);
   }
 
   updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
     if (!startObject.points) return null;
-
-    // 添加点到路径
     startObject.points.push({ ...point });
-
-    // 更新边界框
     startObject.bounds = this.calculateBounds(startObject, context);
-    
     return startObject;
   }
 
@@ -57,47 +46,36 @@ export class PenTool extends ToolPlugin {
     if (startObject.points) {
       startObject.points.push({ ...point });
     }
-
-    // 计算边界框
     startObject.bounds = this.calculateBounds(startObject, context);
-    
     return startObject;
   }
 
   render(obj: DrawingObject, context: ToolContext): void {
     if (!obj.points || obj.points.length === 0) return;
-
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.lineCap = 'round';
     context.ctx.lineJoin = 'round';
     context.ctx.globalAlpha = obj.options.opacity;
-
     if (obj.options.lineDash && obj.options.lineDash.length > 0) {
       context.ctx.setLineDash(obj.options.lineDash);
     }
-
     context.ctx.beginPath();
     context.ctx.moveTo(obj.points[0].x, obj.points[0].y);
-    
     for (let i = 1; i < obj.points.length; i++) {
       context.ctx.lineTo(obj.points[i].x, obj.points[i].y);
     }
-    
     context.ctx.stroke();
     context.ctx.restore();
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
     if (!obj.points || obj.points.length < 2) return false;
-
-    // 检查是否接近任何线段
     for (let i = 1; i < obj.points.length; i++) {
       const distance = this.distanceToLineSegment(point, obj.points[i-1], obj.points[i]);
       if (distance <= margin) return true;
     }
-    
     return false;
   }
 
@@ -105,22 +83,18 @@ export class PenTool extends ToolPlugin {
     if (!obj.points || obj.points.length === 0) {
       return { x: 0, y: 0, width: 0, height: 0 };
     }
-
     let minX = obj.points[0].x;
     let maxX = obj.points[0].x;
     let minY = obj.points[0].y;
     let maxY = obj.points[0].y;
-
     for (const point of obj.points) {
       minX = Math.min(minX, point.x);
       maxX = Math.max(maxX, point.x);
       minY = Math.min(minY, point.y);
       maxY = Math.max(maxY, point.y);
     }
-
     const strokeWidth = obj.options.strokeWidth || 1;
     const padding = strokeWidth / 2;
-
     return {
       x: minX - padding,
       y: minY - padding,
@@ -134,18 +108,13 @@ export class PenTool extends ToolPlugin {
     const B = point.y - lineStart.y;
     const C = lineEnd.x - lineStart.x;
     const D = lineEnd.y - lineStart.y;
-
     const dot = A * C + B * D;
     const lenSq = C * C + D * D;
-    
     if (lenSq === 0) {
       return Math.sqrt(A * A + B * B);
     }
-
     const param = dot / lenSq;
-
     let xx: number, yy: number;
-
     if (param < 0) {
       xx = lineStart.x;
       yy = lineStart.y;
@@ -156,7 +125,6 @@ export class PenTool extends ToolPlugin {
       xx = lineStart.x + param * C;
       yy = lineStart.y + param * D;
     }
-
     const dx = point.x - xx;
     const dy = point.y - yy;
     return Math.sqrt(dx * dx + dy * dy);

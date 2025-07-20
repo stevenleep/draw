@@ -35,6 +35,7 @@ export class DrawingEventHandler {
   // 回调函数
   private onModeChange?: (mode: DrawingMode) => void;
   private onRedraw?: () => void;
+  // 移除 inputHandler 相关声明
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -85,6 +86,7 @@ export class DrawingEventHandler {
     this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
     this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
     this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
+    // 移除 input 事件监听
     
     console.log('🔧 Event listeners set up, canvas tabIndex:', this.canvas.tabIndex);
   }
@@ -111,8 +113,10 @@ export class DrawingEventHandler {
     this.drawingState.setSelectedObject(clickedObject);
     this.generateTransformHandles(clickedObject);
     
-    // 如果是文本对象，区分选择和编辑状态
+    // 如果是文本对象，进入编辑模式
     if (clickedObject.type === 'text') {
+      console.log('📝 Text object clicked, entering edit mode');
+      
       // 如果已经在编辑这个文本对象，不重复进入编辑模式
       if (this.textEditingState.isEditing() && this.drawingState.getSelectedObject() === clickedObject) {
         console.log('📝 Already editing this text object');
@@ -125,10 +129,12 @@ export class DrawingEventHandler {
         this.finishTextEditing();
       }
       
-      console.log('📝 Starting text editing for clicked object');
+      // 设置选择对象并进入编辑模式
+      this.drawingState.setSelectedObject(clickedObject);
       this.textEditingState.startEditing(clickedObject);
       this.canvas.focus();
-      console.log('📝 Canvas focused, document.activeElement:', document.activeElement);
+      
+      console.log('📝 Text editing started, canvas focused');
       if (this.onRedraw) this.onRedraw();
       return;
     }
@@ -213,52 +219,119 @@ export class DrawingEventHandler {
 
   // 键盘事件处理
   private handleKeyDown(e: KeyboardEvent): void {
-    console.log('⌨️ Key pressed:', e.key, 'Text editing:', this.textEditingState.isEditing());
-    
-    // 文本编辑状态优先级最高
-    if (this.textEditingState.isEditing()) {
-      console.log('📝 Handling text input for key:', e.key);
-      this.handleTextInput(e);
+    if (!this.textEditingState.isEditing()) {
+      // 非编辑状态下处理全局快捷键
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          this.deleteSelected();
+          break;
+        case 'Escape':
+          this.cancelTextEditing();
+          break;
+        case 'z':
+          if (e.ctrlKey || e.metaKey) {
+            if (e.shiftKey) {
+              this.redo();
+            } else {
+              this.undo();
+            }
+          }
+          break;
+        case 'c':
+          if (e.ctrlKey || e.metaKey) {
+            this.copySelected();
+          }
+          break;
+        case 'v':
+          if (e.ctrlKey || e.metaKey) {
+            this.paste();
+          }
+          break;
+        case 'x':
+          if (e.ctrlKey || e.metaKey) {
+            this.cutSelected();
+          }
+          break;
+        case 'a':
+          if (e.ctrlKey || e.metaKey) {
+            this.selectAll();
+          }
+          break;
+      }
       return;
     }
-    
-    // 只有在非文本编辑状态下才处理快捷键
+    // 编辑状态下
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      // 支持快捷键
+      return;
+    }
     switch (e.key) {
-      case 'Delete':
-      case 'Backspace':
-        this.deleteSelected();
+      case 'Enter':
+        if (e.shiftKey) {
+          this.textEditingState.insertCharacter('\n');
+          this.updateTextObject();
+          this.onRedraw?.();
+        } else {
+          this.finishTextEditing();
+        }
+        e.preventDefault();
         break;
       case 'Escape':
         this.cancelTextEditing();
+        e.preventDefault();
         break;
-      case 'z':
-        if (e.ctrlKey || e.metaKey) {
-          if (e.shiftKey) {
-            this.redo();
-          } else {
-            this.undo();
-          }
-        }
+      case 'Backspace':
+        this.textEditingState.deleteCharacter();
+        this.updateTextObject();
+        this.onRedraw?.();
+        e.preventDefault();
         break;
-      case 'c':
-        if (e.ctrlKey || e.metaKey) {
-          this.copySelected();
-        }
+      case 'Delete':
+        this.textEditingState.deleteCharacterForward();
+        this.updateTextObject();
+        this.onRedraw?.();
+        e.preventDefault();
         break;
-      case 'v':
-        if (e.ctrlKey || e.metaKey) {
-          this.paste();
-        }
+      case 'ArrowLeft':
+        this.textEditingState.moveCursorLeft();
+        this.onRedraw?.();
+        e.preventDefault();
         break;
-      case 'x':
-        if (e.ctrlKey || e.metaKey) {
-          this.cutSelected();
-        }
+      case 'ArrowRight':
+        this.textEditingState.moveCursorRight();
+        this.onRedraw?.();
+        e.preventDefault();
         break;
-      case 'a':
-        if (e.ctrlKey || e.metaKey) {
-          this.selectAll();
+      case 'ArrowUp':
+        this.textEditingState.moveCursorUp();
+        this.onRedraw?.();
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        this.textEditingState.moveCursorDown();
+        this.onRedraw?.();
+        e.preventDefault();
+        break;
+      case 'Home':
+        this.textEditingState.moveCursorToStart();
+        this.onRedraw?.();
+        e.preventDefault();
+        break;
+      case 'End':
+        this.textEditingState.moveCursorToEnd();
+        this.onRedraw?.();
+        e.preventDefault();
+        break;
+      default:
+        // 只允许英文、数字、符号
+        if (e.key.length === 1 && /^[\x20-\x7E]$/.test(e.key)) {
+          this.textEditingState.insertCharacter(e.key);
+          this.updateTextObject();
+          this.onRedraw?.();
+          e.preventDefault();
         }
+        // 其他情况不处理
         break;
     }
   }
@@ -334,13 +407,12 @@ export class DrawingEventHandler {
             console.log('🎨 Object added to canvas:', finishedObject.type);
             
             // 处理文本编辑
-            if (finishedObject.type === 'text' && !finishedObject.text) {
-              setTimeout(() => {
-                this.textEditingState.startEditing(finishedObject);
-                this.drawingState.setSelectedObject(finishedObject);
-                this.canvas.focus(); // 确保canvas获得焦点
-                this.onRedraw?.();
-              }, 10);
+            if (finishedObject.type === 'text' && (finishedObject as any).__shouldStartEditing) {
+              console.log('📝 Starting text editing for new text object');
+              this.textEditingState.startEditing(finishedObject);
+              this.drawingState.setSelectedObject(finishedObject);
+              this.canvas.focus(); // 确保canvas获得焦点
+              this.onRedraw?.();
             }
             
             this.onRedraw?.();
@@ -444,88 +516,9 @@ export class DrawingEventHandler {
   }
 
   // 文本相关方法
-  private handleTextInput(e: KeyboardEvent): void {
-    e.preventDefault();
-    console.log('📝 Text input handling:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey, 'Key length:', e.key.length);
-    
-    switch (e.key) {
-      case 'Enter':
-        if (e.shiftKey) {
-          // Shift+Enter 换行
-          console.log('📝 Inserting newline');
-          this.textEditingState.insertCharacter('\n');
-          this.updateTextObject();
-          this.onRedraw?.();
-        } else {
-          // Enter 完成编辑
-          console.log('📝 Finishing text editing');
-          this.finishTextEditing();
-        }
-        break;
-      case 'Escape':
-        console.log('📝 Canceling text editing');
-        this.cancelTextEditing();
-        break;
-      case 'ArrowLeft':
-        console.log('📝 Moving cursor left');
-        this.textEditingState.moveCursorLeft();
-        this.onRedraw?.();
-        break;
-      case 'ArrowRight':
-        console.log('📝 Moving cursor right');
-        this.textEditingState.moveCursorRight();
-        this.onRedraw?.();
-        break;
-      case 'ArrowUp':
-        // 向上移动光标（多行文本）
-        console.log('📝 Moving cursor up');
-        this.textEditingState.moveCursorUp();
-        this.onRedraw?.();
-        break;
-      case 'ArrowDown':
-        // 向下移动光标（多行文本）
-        console.log('📝 Moving cursor down');
-        this.textEditingState.moveCursorDown();
-        this.onRedraw?.();
-        break;
-      case 'Home':
-        console.log('📝 Moving cursor to start');
-        this.textEditingState.moveCursorToStart();
-        this.onRedraw?.();
-        break;
-      case 'End':
-        console.log('📝 Moving cursor to end');
-        this.textEditingState.moveCursorToEnd();
-        this.onRedraw?.();
-        break;
-      case 'Backspace':
-        console.log('📝 Deleting character backward');
-        this.textEditingState.deleteCharacter();
-        this.updateTextObject();
-        this.onRedraw?.();
-        break;
-      case 'Delete':
-        console.log('📝 Deleting character forward');
-        this.textEditingState.deleteCharacterForward();
-        this.updateTextObject();
-        this.onRedraw?.();
-        break;
-      default:
-        // 只处理真正的字符输入，排除功能键和控制键
-        console.log('📝 Default case - key:', e.key, 'length:', e.key.length, 'code:', e.code);
-        
-        // 检查是否是真正的字符输入
-        if (this.isCharacterInput(e)) {
-          console.log('📝 Inserting character:', e.key);
-          this.textEditingState.insertCharacter(e.key);
-          this.updateTextObject();
-          this.onRedraw?.();
-        } else {
-          console.log('📝 Not a character input, ignoring');
-        }
-        break;
-    }
-  }
+  // handleTextInput 方法已删除，逻辑已整合到 handleKeyDown 中
+
+  // 移除 handleInput 方法
 
   private finishTextEditing(): void {
     const newText = this.textEditingState.finishEditing();
@@ -533,7 +526,23 @@ export class DrawingEventHandler {
     
     if (selectedObject && selectedObject.type === 'text') {
       selectedObject.text = newText;
-      this.recalculateTextBounds(selectedObject);
+      
+      // 使用TextTool重新计算边界
+      const tool = this.toolManager.getTool('text');
+      if (tool) {
+        const context = {
+          ctx: this.canvas.getContext('2d')!,
+          canvas: this.canvas,
+          options: selectedObject.options,
+          generateId: () => '',
+          redrawCanvas: () => {},
+          saveState: () => {}
+        };
+        selectedObject.bounds = tool.calculateBounds(selectedObject, context);
+      } else {
+        this.recalculateTextBounds(selectedObject);
+      }
+      
       this.onRedraw?.();
     }
   }
@@ -547,7 +556,22 @@ export class DrawingEventHandler {
     const selectedObject = this.drawingState.getSelectedObject();
     if (selectedObject && selectedObject.type === 'text') {
       selectedObject.text = this.textEditingState.getEditingText();
-      this.recalculateTextBounds(selectedObject);
+      
+      // 使用TextTool重新计算边界
+      const tool = this.toolManager.getTool('text');
+      if (tool) {
+        const context = {
+          ctx: this.canvas.getContext('2d')!,
+          canvas: this.canvas,
+          options: selectedObject.options,
+          generateId: () => '',
+          redrawCanvas: () => {},
+          saveState: () => {}
+        };
+        selectedObject.bounds = tool.calculateBounds(selectedObject, context);
+      } else {
+        this.recalculateTextBounds(selectedObject);
+      }
     }
   }
 
@@ -556,47 +580,7 @@ export class DrawingEventHandler {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   }
 
-  // 检查是否是字符输入
-  private isCharacterInput(e: KeyboardEvent): boolean {
-    console.log('🔍 Checking character input:', e.key, 'length:', e.key.length, 'code:', e.code);
-    
-    // 排除控制键
-    if (e.ctrlKey || e.metaKey || e.altKey) {
-      console.log('🔍 Excluded due to control keys');
-      return false;
-    }
-    
-    // 排除已知的功能键
-    const functionKeys = [
-      'Enter', 'Escape', 'Tab', 'Backspace', 'Delete',
-      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-      'Home', 'End', 'PageUp', 'PageDown', 'Insert',
-      'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
-      'CapsLock', 'NumLock', 'ScrollLock', 'Pause', 'PrintScreen'
-    ];
-    
-    if (functionKeys.includes(e.key)) {
-      console.log('🔍 Excluded due to function key:', e.key);
-      return false;
-    }
-    
-    // 检查是否是真正的字符输入
-    if (e.key.length === 1) {
-      // 单字符通常是真正的字符输入
-      console.log('🔍 Single character input:', e.key);
-      return true;
-    }
-    
-    // 处理中文字符输入和其他多字符输入
-    if (e.key.length > 1) {
-      // 中文字符通常长度大于1
-      console.log('🔍 Multi-character input (likely Chinese):', e.key);
-      return true;
-    }
-    
-    console.log('🔍 Not a character input');
-    return false;
-  }
+  // isCharacterInput 方法已删除，逻辑已整合到 handleKeyDown 中
 
   private getObjectAtPoint(x: number, y: number): DrawingObject | null {
     const objects = this.drawingState.getObjects();
@@ -629,8 +613,29 @@ export class DrawingEventHandler {
       selectedObject.endPoint.x = newX + selectedObject.bounds.width;
       selectedObject.endPoint.y = newY + selectedObject.bounds.height;
     }
-    selectedObject.bounds.x = newX;
-    selectedObject.bounds.y = newY;
+    
+    // 对于文本对象，需要重新计算边界
+    if (selectedObject.type === 'text') {
+      const tool = this.toolManager.getTool('text');
+      if (tool) {
+        const context = {
+          ctx: this.canvas.getContext('2d')!,
+          canvas: this.canvas,
+          options: selectedObject.options,
+          generateId: () => '',
+          redrawCanvas: () => {},
+          saveState: () => {}
+        };
+        selectedObject.bounds = tool.calculateBounds(selectedObject, context);
+      } else {
+        // 后备方案：直接更新边界位置
+        selectedObject.bounds.x = newX;
+        selectedObject.bounds.y = newY;
+      }
+    } else {
+      selectedObject.bounds.x = newX;
+      selectedObject.bounds.y = newY;
+    }
     
     this.onRedraw?.();
   }
@@ -886,5 +891,6 @@ export class DrawingEventHandler {
   // 清理资源
   destroy(): void {
     this.textEditingState.destroy();
+    // 移除 input 事件监听相关代码
   }
 } 
