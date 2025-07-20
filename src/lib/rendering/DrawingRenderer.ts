@@ -3,104 +3,76 @@ import { ToolManager } from "../plugins/ToolManager";
 import { TextEditingState } from "../state/TextEditingState";
 
 export class DrawingRenderer {
-  private ctx: CanvasRenderingContext2D;
+  private context: CanvasRenderingContext2D;
   private toolManager: ToolManager;
   private textEditingState: TextEditingState;
 
-  constructor(ctx: CanvasRenderingContext2D, toolManager: ToolManager, textEditingState: TextEditingState) {
-    this.ctx = ctx;
+  constructor(context: CanvasRenderingContext2D, toolManager: ToolManager, textEditingState: TextEditingState) {
+    this.context = context;
     this.toolManager = toolManager;
     this.textEditingState = textEditingState;
   }
 
-  renderObjects(objects: DrawingObject[]): void {
-    objects.forEach((obj) => {
-      this.renderObject(obj);
-    });
+  drawObjects(objects: DrawingObject[]): void {
+    for (const obj of objects) {
+      this.drawObject(obj);
+    }
   }
 
-  public renderObject(obj: DrawingObject): void {
-    this.ctx.save();
-
-    this.applyTransform(obj);
-
-    this.setBasicStyles(obj.options);
-
-    this.setLineStyles(obj.options);
-
-    this.setShadowStyles(obj.options);
-
+  public drawObject(obj: DrawingObject): void {
+    this.context.save();
+    this.applyObjectTransform(obj);
+    this.applyStyles(obj.options);
     const tool = this.toolManager.getTool(obj.type);
     if (tool) {
-      const context = {
-        ctx: this.ctx,
-        canvas: this.ctx.canvas,
-        options: obj.options,
-        generateId: () => "",
-        redrawCanvas: () => {},
-        saveState: () => {},
-      };
-
-      tool.render(obj, context);
+      const toolContext = this.createToolContext(obj);
+      tool.render(obj, toolContext);
     } else {
-      this.renderLegacyObject(obj);
+      this.drawLegacyObject(obj);
     }
-
-    this.resetStyles();
-
-    this.ctx.restore();
+    this.resetContextStyles();
+    this.context.restore();
   }
 
-  renderTextEditingOverlay(selectedObject: DrawingObject | null): void {
+  drawTextEditingOverlay(selectedObject: DrawingObject | null): void {
     if (!this.textEditingState.isEditing() || !selectedObject || selectedObject.type !== "text") {
       return;
     }
-
     const textTool = this.toolManager.getTool("text");
     if (textTool && "renderCursor" in textTool) {
-      const context = {
-        ctx: this.ctx,
-        canvas: this.ctx.canvas,
-        options: selectedObject.options,
-        generateId: () => "",
-        redrawCanvas: () => {},
-        saveState: () => {},
-      };
-
-      this.ctx.save();
-      this.ctx.font = `${selectedObject.options.fontWeight || "normal"} ${selectedObject.options.fontSize}px ${selectedObject.options.fontFamily || "Arial"}`;
-      this.ctx.textAlign = selectedObject.options.textAlign || "left";
-      this.ctx.textBaseline = "top";
-      this.ctx.fillStyle = selectedObject.options.color || "#222";
-      this.ctx.globalAlpha = 1;
-
+      const toolContext = this.createToolContext(selectedObject);
+      this.context.save();
+      this.context.font = `${selectedObject.options.fontWeight || "normal"} ${selectedObject.options.fontSize}px ${selectedObject.options.fontFamily || "Arial"}`;
+      this.context.textAlign = selectedObject.options.textAlign || "left";
+      this.context.textBaseline = "top";
+      this.context.fillStyle = selectedObject.options.color || "#222";
+      this.context.globalAlpha = 1;
       const editingText = this.textEditingState.getEditingText();
       if (editingText) {
-        this.renderMultilineText(editingText, selectedObject.startPoint.x, selectedObject.startPoint.y, selectedObject.options);
+        this.drawMultilineText(editingText, selectedObject.startPoint.x, selectedObject.startPoint.y, selectedObject.options);
       }
-      this.ctx.restore();
-
-      (textTool as any).renderCursor(selectedObject, this.textEditingState.getCursorPosition(), this.textEditingState.isCursorVisible(), context);
+      this.context.restore();
+      (textTool as any).renderCursor(selectedObject, this.textEditingState.getCursorPosition(), this.textEditingState.isCursorVisible(), toolContext);
     }
   }
 
-  renderSelectionBox(obj: DrawingObject): void {
+  drawSelectionBox(obj: DrawingObject): void {
     const padding = 10;
-    this.ctx.save();
-    this.ctx.strokeStyle = "#0066ff";
-    this.ctx.lineWidth = 2;
-    this.ctx.setLineDash([5, 5]);
-    this.ctx.strokeRect(obj.bounds.x - padding, obj.bounds.y - padding, obj.bounds.width + padding * 2, obj.bounds.height + padding * 2);
-    this.ctx.restore();
+    this.context.save();
+    this.context.strokeStyle = "#0066ff";
+    this.context.lineWidth = 2;
+    this.context.setLineDash([5, 5]);
+    this.context.strokeRect(obj.bounds.x - padding, obj.bounds.y - padding, obj.bounds.width + padding * 2, obj.bounds.height + padding * 2);
+    this.context.restore();
   }
 
-  renderTransformHandles(handles: TransformHandle[]): void {
-    handles.forEach((handle) => {
-      this.renderTransformHandle(handle);
-    });
+  drawTransformHandles(handles: TransformHandle[]): void {
+    for (const handle of handles) {
+      this.drawTransformHandle(handle);
+    }
   }
 
-  private applyTransform(obj: DrawingObject): void {
+  private applyObjectTransform(obj: DrawingObject): void {
     if (
       obj.transform &&
       (obj.transform.rotation !== 0 ||
@@ -111,158 +83,148 @@ export class DrawingRenderer {
     ) {
       const centerX = obj.bounds.x + obj.bounds.width / 2;
       const centerY = obj.bounds.y + obj.bounds.height / 2;
-
-      this.ctx.translate(centerX, centerY);
-
+      this.context.translate(centerX, centerY);
       if (obj.transform.rotation !== 0) {
-        this.ctx.rotate(obj.transform.rotation);
+        this.context.rotate(obj.transform.rotation);
       }
-
       if (obj.transform.scaleX !== 1 || obj.transform.scaleY !== 1) {
-        this.ctx.scale(obj.transform.scaleX, obj.transform.scaleY);
+        this.context.scale(obj.transform.scaleX, obj.transform.scaleY);
       }
-
-      this.ctx.translate(-centerX, -centerY);
-
+      this.context.translate(-centerX, -centerY);
       if (obj.transform.translateX !== 0 || obj.transform.translateY !== 0) {
-        this.ctx.translate(obj.transform.translateX, obj.transform.translateY);
+        this.context.translate(obj.transform.translateX, obj.transform.translateY);
       }
     }
   }
 
-  private setBasicStyles(options: DrawingOptions): void {
-    this.ctx.strokeStyle = options.color;
-    this.ctx.fillStyle = options.fillColor || options.color;
-    this.ctx.lineWidth = options.strokeWidth;
-    this.ctx.lineCap = "round";
-    this.ctx.lineJoin = "round";
-    this.ctx.globalAlpha = options.opacity;
-  }
-
-  private setLineStyles(options: DrawingOptions): void {
+  private applyStyles(options: DrawingOptions): void {
+    this.context.strokeStyle = options.color;
+    this.context.fillStyle = options.fillColor || options.color;
+    this.context.lineWidth = options.strokeWidth;
+    this.context.lineCap = "round";
+    this.context.lineJoin = "round";
+    this.context.globalAlpha = options.opacity;
     if (options.lineDash && options.lineDash.length > 0) {
-      this.ctx.setLineDash(options.lineDash);
+      this.context.setLineDash(options.lineDash);
     } else {
-      this.ctx.setLineDash([]);
+      this.context.setLineDash([]);
     }
-  }
-
-  private setShadowStyles(options: DrawingOptions): void {
     if (options.shadowColor && options.shadowColor !== "transparent" && options.shadowBlur && options.shadowBlur > 0) {
-      this.ctx.shadowColor = options.shadowColor;
-      this.ctx.shadowBlur = options.shadowBlur;
-      this.ctx.shadowOffsetX = options.shadowOffsetX || 0;
-      this.ctx.shadowOffsetY = options.shadowOffsetY || 0;
+      this.context.shadowColor = options.shadowColor;
+      this.context.shadowBlur = options.shadowBlur;
+      this.context.shadowOffsetX = options.shadowOffsetX || 0;
+      this.context.shadowOffsetY = options.shadowOffsetY || 0;
     } else {
-      this.ctx.shadowColor = "transparent";
-      this.ctx.shadowBlur = 0;
-      this.ctx.shadowOffsetX = 0;
-      this.ctx.shadowOffsetY = 0;
+      this.context.shadowColor = "transparent";
+      this.context.shadowBlur = 0;
+      this.context.shadowOffsetX = 0;
+      this.context.shadowOffsetY = 0;
     }
   }
 
-  private resetStyles(): void {
-    this.ctx.globalAlpha = 1;
-    this.ctx.setLineDash([]);
-    this.ctx.shadowColor = "transparent";
-    this.ctx.shadowBlur = 0;
-    this.ctx.shadowOffsetX = 0;
-    this.ctx.shadowOffsetY = 0;
+  private resetContextStyles(): void {
+    this.context.globalAlpha = 1;
+    this.context.setLineDash([]);
+    this.context.shadowColor = "transparent";
+    this.context.shadowBlur = 0;
+    this.context.shadowOffsetX = 0;
+    this.context.shadowOffsetY = 0;
   }
 
-  private renderMultilineText(text: string, x: number, y: number, opts: DrawingOptions): void {
+  private drawMultilineText(text: string, x: number, y: number, opts: DrawingOptions): void {
     const lines = text.split("\n");
     const lineHeight = opts.fontSize * 1.2;
-
-    lines.forEach((line, index) => {
-      const lineY = y + index * lineHeight;
-      this.ctx.fillText(line, x, lineY);
-    });
+    for (let i = 0; i < lines.length; i++) {
+      const lineY = y + i * lineHeight;
+      this.context.fillText(lines[i], x, lineY);
+    }
   }
 
-  private renderTransformHandle(handle: TransformHandle): void {
-    this.ctx.save();
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.strokeStyle = "#0066ff";
-    this.ctx.lineWidth = 2;
-
-    this.ctx.fillRect(handle.x, handle.y, handle.width, handle.height);
-    this.ctx.strokeRect(handle.x, handle.y, handle.width, handle.height);
-
-    this.ctx.restore();
+  private drawTransformHandle(handle: TransformHandle): void {
+    this.context.save();
+    this.context.fillStyle = "#ffffff";
+    this.context.strokeStyle = "#0066ff";
+    this.context.lineWidth = 2;
+    this.context.fillRect(handle.x, handle.y, handle.width, handle.height);
+    this.context.strokeRect(handle.x, handle.y, handle.width, handle.height);
+    this.context.restore();
   }
 
   private static readonly STAR_POINTS = 5;
 
-  private renderLegacyObject(obj: DrawingObject): void {
+  private drawLegacyObject(obj: DrawingObject): void {
     switch (obj.type) {
       case "line":
         if (obj.endPoint) {
-          this.ctx.beginPath();
-          this.ctx.moveTo(obj.startPoint.x, obj.startPoint.y);
-          this.ctx.lineTo(obj.endPoint.x, obj.endPoint.y);
-          this.ctx.stroke();
+          this.context.beginPath();
+          this.context.moveTo(obj.startPoint.x, obj.startPoint.y);
+          this.context.lineTo(obj.endPoint.x, obj.endPoint.y);
+          this.context.stroke();
         }
         break;
-
       case "star":
         if (obj.endPoint) {
           const radius = Math.sqrt((obj.endPoint.x - obj.startPoint.x) ** 2 + (obj.endPoint.y - obj.startPoint.y) ** 2);
-          this.drawStar(obj.startPoint.x, obj.startPoint.y, radius, DrawingRenderer.STAR_POINTS);
+          this.drawStarShape(obj.startPoint.x, obj.startPoint.y, radius, DrawingRenderer.STAR_POINTS);
         }
         break;
-
       case "triangle":
         if (obj.endPoint) {
-          this.drawTriangle(obj.startPoint, obj.endPoint);
+          this.drawTriangleShape(obj.startPoint, obj.endPoint);
         }
         break;
-
       case "hand-drawn":
       case "eraser":
       case "highlighter":
         if (obj.points && obj.points.length > 0) {
-          this.ctx.beginPath();
-          this.ctx.moveTo(obj.points[0].x, obj.points[0].y);
+          this.context.beginPath();
+          this.context.moveTo(obj.points[0].x, obj.points[0].y);
           for (let i = 1; i < obj.points.length; i++) {
-            this.ctx.lineTo(obj.points[i].x, obj.points[i].y);
+            this.context.lineTo(obj.points[i].x, obj.points[i].y);
           }
-          this.ctx.stroke();
+          this.context.stroke();
         }
         break;
-
       default:
-        // Optionally, handle unknown types or do nothing
         break;
     }
   }
 
-  private drawStar(centerX: number, centerY: number, radius: number, points: number): void {
-    this.ctx.beginPath();
+  private drawStarShape(centerX: number, centerY: number, radius: number, points: number): void {
+    this.context.beginPath();
     for (let i = 0; i < points * 2; i++) {
       const angle = (i * Math.PI) / points;
       const r = i % 2 === 0 ? radius : radius * 0.5;
       const x = centerX + Math.cos(angle) * r;
       const y = centerY + Math.sin(angle) * r;
-
       if (i === 0) {
-        this.ctx.moveTo(x, y);
+        this.context.moveTo(x, y);
       } else {
-        this.ctx.lineTo(x, y);
+        this.context.lineTo(x, y);
       }
     }
-    this.ctx.closePath();
-    this.ctx.stroke();
+    this.context.closePath();
+    this.context.stroke();
   }
 
-  private drawTriangle(start: { x: number; y: number }, end: { x: number; y: number }): void {
+  private drawTriangleShape(start: { x: number; y: number }, end: { x: number; y: number }): void {
     const width = end.x - start.x;
+    this.context.beginPath();
+    this.context.moveTo(start.x + width / 2, start.y);
+    this.context.lineTo(start.x, end.y);
+    this.context.lineTo(end.x, end.y);
+    this.context.closePath();
+    this.context.stroke();
+  }
 
-    this.ctx.beginPath();
-    this.ctx.moveTo(start.x + width / 2, start.y);
-    this.ctx.lineTo(start.x, end.y);
-    this.ctx.lineTo(end.x, end.y);
-    this.ctx.closePath();
-    this.ctx.stroke();
+  private createToolContext(obj: DrawingObject) {
+    return {
+      ctx: this.context,
+      canvas: this.context.canvas,
+      options: obj.options,
+      generateId: () => "",
+      redrawCanvas: () => { },
+      saveState: () => { },
+    };
   }
 }

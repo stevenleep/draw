@@ -73,3 +73,17 @@ export interface Point {
   x: number;
   y: number;
 }
+
+export function cloneDrawingObject(obj: DrawingObject): DrawingObject {
+  return {
+    id: obj.id,
+    type: obj.type,
+    startPoint: { ...obj.startPoint },
+    endPoint: obj.endPoint ? { ...obj.endPoint } : undefined,
+    points: obj.points ? obj.points.map((p) => ({ ...p })) : undefined,
+    text: obj.text,
+    options: { ...obj.options },
+    bounds: { ...obj.bounds },
+    transform: obj.transform ? { ...obj.transform } : undefined,
+  };
+}

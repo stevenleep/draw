@@ -1,5 +1,4 @@
-import { DrawingEngine } from "../../lib";
-import type { DrawingMode, DrawingOptions } from "../../lib";
+import { DrawingEngine, type DrawingMode, type DrawingOptions } from "../../lib";
 
 export class DrawingManager {
   private drawingEngine: DrawingEngine | null = null;

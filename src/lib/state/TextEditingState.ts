@@ -1,190 +1,153 @@
 import { DrawingObject } from "../core/types";
 
 export class TextEditingState {
-  private isEditingText = false;
-  private editingText = "";
-  private textCursorPosition = 0;
-  private textCursorVisible = true;
-  private textCursorBlinkTimer: number | null = null;
+  private editing = false;
+  private textBuffer = "";
+  private cursorIndex = 0;
+  private cursorVisible = true;
+  private cursorBlinkRAF: number | null = null;
 
-  isEditing(): boolean {
-    return this.isEditingText;
+  isEditing() {
+    return this.editing;
   }
 
-  getEditingText(): string {
-    return this.editingText;
+  getEditingText() {
+    return this.textBuffer;
   }
 
-  getCursorPosition(): number {
-    return this.textCursorPosition;
+  getCursorPosition() {
+    return this.cursorIndex;
   }
 
-  isCursorVisible(): boolean {
-    return this.textCursorVisible;
+  isCursorVisible() {
+    return this.cursorVisible;
   }
 
-  startEditing(textObj: DrawingObject): void {
-    this.isEditingText = true;
-    this.editingText = textObj.text || "";
-    this.textCursorPosition = this.editingText.length;
-    this.textCursorVisible = true;
+  private resetState() {
+    this.editing = false;
+    this.stopCursorBlink();
+    this.textBuffer = "";
+    this.cursorIndex = 0;
+  }
+
+  startEditing(textObj: DrawingObject) {
+    this.editing = true;
+    this.textBuffer = textObj.text || "";
+    this.cursorIndex = this.textBuffer.length;
+    this.cursorVisible = true;
     this.startCursorBlink();
   }
 
-  finishEditing(): string {
-    if (!this.isEditingText) {
-      return "";
-    }
-
-    this.isEditingText = false;
-    this.stopCursorBlink();
-
-    const newText = this.editingText;
-    this.editingText = "";
-    this.textCursorPosition = 0;
-
+  finishEditing() {
+    if (!this.editing) return "";
+    const newText = this.textBuffer;
+    this.resetState();
     return newText;
   }
 
-  cancelEditing(): void {
-    if (!this.isEditingText) {
-      return;
-    }
-
-    this.isEditingText = false;
-    this.stopCursorBlink();
-    this.editingText = "";
-    this.textCursorPosition = 0;
+  cancelEditing() {
+    if (!this.editing) return;
+    this.resetState();
   }
 
-  insertCharacter(char: string): void {
-    if (!this.isEditingText) {
-      return;
-    }
-
-    this.editingText = this.editingText.slice(0, this.textCursorPosition) + char + this.editingText.slice(this.textCursorPosition);
-    this.textCursorPosition++;
+  private setTextAndCursor(newText: string, newCursorPos: number) {
+    this.textBuffer = newText;
+    this.cursorIndex = newCursorPos;
   }
 
-  deleteCharacter(): void {
-    if (!this.isEditingText || this.textCursorPosition === 0) {
-      return;
-    }
-
-    this.editingText = this.editingText.slice(0, this.textCursorPosition - 1) + this.editingText.slice(this.textCursorPosition);
-    this.textCursorPosition--;
+  insertCharacter(char: string) {
+    if (!this.editing) return;
+    const { textBuffer, cursorIndex } = this;
+    this.setTextAndCursor(
+      textBuffer.slice(0, cursorIndex) + char + textBuffer.slice(cursorIndex),
+      cursorIndex + 1
+    );
   }
 
-  deleteCharacterForward(): void {
-    if (!this.isEditingText || this.textCursorPosition >= this.editingText.length) {
-      return;
-    }
-
-    this.editingText = this.editingText.slice(0, this.textCursorPosition) + this.editingText.slice(this.textCursorPosition + 1);
+  deleteCharacter() {
+    if (!this.editing || this.cursorIndex === 0) return;
+    const { textBuffer, cursorIndex } = this;
+    this.setTextAndCursor(
+      textBuffer.slice(0, cursorIndex - 1) + textBuffer.slice(cursorIndex),
+      cursorIndex - 1
+    );
   }
 
-  moveCursorUp(): void {
-    if (this.textCursorPosition === 0) {
-      return;
-    }
+  deleteCharacterForward() {
+    if (!this.editing || this.cursorIndex >= this.textBuffer.length) return;
+    const { textBuffer, cursorIndex } = this;
+    this.setTextAndCursor(
+      textBuffer.slice(0, cursorIndex) + textBuffer.slice(cursorIndex + 1),
+      cursorIndex
+    );
+  }
 
-    const lines = this.editingText.split("\n");
+  private moveCursorByLineOffset(offset: number) {
+    const lines = this.textBuffer.split("\n");
     let currentPos = 0;
     let currentLine = 0;
     let currentColumn = 0;
-
     for (let i = 0; i < lines.length; i++) {
-      if (currentPos + lines[i].length >= this.textCursorPosition) {
+      if (currentPos + lines[i].length >= this.cursorIndex) {
         currentLine = i;
-        currentColumn = this.textCursorPosition - currentPos;
+        currentColumn = this.cursorIndex - currentPos;
         break;
       }
       currentPos += lines[i].length + 1;
     }
-
-    if (currentLine > 0) {
-      const prevLine = lines[currentLine - 1];
-      const targetColumn = Math.min(currentColumn, prevLine.length);
-      let newPos = 0;
-
-      for (let i = 0; i < currentLine - 1; i++) {
-        newPos += lines[i].length + 1;
-      }
-      newPos += targetColumn;
-
-      this.textCursorPosition = newPos;
+    const targetLine = currentLine + offset;
+    if (targetLine < 0 || targetLine >= lines.length) return;
+    let newPos = 0;
+    for (let i = 0; i < targetLine; i++) {
+      newPos += lines[i].length + 1;
     }
+    newPos += Math.min(currentColumn, lines[targetLine].length);
+    this.cursorIndex = newPos;
   }
 
-  moveCursorDown(): void {
-    const lines = this.editingText.split("\n");
-    let currentPos = 0;
-    let currentLine = 0;
-    let currentColumn = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      if (currentPos + lines[i].length >= this.textCursorPosition) {
-        currentLine = i;
-        currentColumn = this.textCursorPosition - currentPos;
-        break;
-      }
-      currentPos += lines[i].length + 1;
-    }
-
-    if (currentLine < lines.length - 1) {
-      const nextLine = lines[currentLine + 1];
-      const targetColumn = Math.min(currentColumn, nextLine.length);
-      let newPos = 0;
-
-      for (let i = 0; i < currentLine + 1; i++) {
-        newPos += lines[i].length + 1;
-      }
-      newPos += targetColumn;
-
-      this.textCursorPosition = newPos;
-    }
+  moveCursorUp() {
+    if (this.cursorIndex === 0) return;
+    this.moveCursorByLineOffset(-1);
   }
 
-  moveCursorLeft(): void {
-    if (this.textCursorPosition > 0) {
-      this.textCursorPosition--;
-    }
+  moveCursorDown() {
+    this.moveCursorByLineOffset(1);
   }
 
-  moveCursorRight(): void {
-    if (this.textCursorPosition < this.editingText.length) {
-      this.textCursorPosition++;
-    }
+  moveCursorLeft() {
+    if (this.cursorIndex > 0) this.cursorIndex--;
   }
 
-  moveCursorToStart(): void {
-    this.textCursorPosition = 0;
+  moveCursorRight() {
+    if (this.cursorIndex < this.textBuffer.length) this.cursorIndex++;
   }
 
-  moveCursorToEnd(): void {
-    this.textCursorPosition = this.editingText.length;
+  moveCursorToStart() {
+    this.cursorIndex = 0;
   }
 
-  private startCursorBlink(): void {
+  moveCursorToEnd() {
+    this.cursorIndex = this.textBuffer.length;
+  }
+
+  private startCursorBlink() {
     this.stopCursorBlink();
-
     const blink = () => {
-      this.textCursorVisible = !this.textCursorVisible;
-      this.textCursorBlinkTimer = requestAnimationFrame(blink);
+      this.cursorVisible = !this.cursorVisible;
+      this.cursorBlinkRAF = requestAnimationFrame(blink);
     };
-
-    this.textCursorBlinkTimer = requestAnimationFrame(blink);
+    this.cursorBlinkRAF = requestAnimationFrame(blink);
   }
 
-  private stopCursorBlink(): void {
-    if (this.textCursorBlinkTimer) {
-      cancelAnimationFrame(this.textCursorBlinkTimer);
-      this.textCursorBlinkTimer = null;
+  private stopCursorBlink() {
+    if (this.cursorBlinkRAF !== null) {
+      cancelAnimationFrame(this.cursorBlinkRAF);
+      this.cursorBlinkRAF = null;
     }
-    this.textCursorVisible = true;
+    this.cursorVisible = true;
   }
 
-  destroy(): void {
+  destroy() {
     this.stopCursorBlink();
   }
 }

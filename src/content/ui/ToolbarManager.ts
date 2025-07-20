@@ -20,23 +20,16 @@ export class ToolbarManager {
   }
 
   public create(): void {
-    try {
-      this.toolbar = this.renderer.createToolbar();
-      this.events.setupEvents();
-      this.settings.setupSettings(this.toolbar);
-      this.restorePosition();
+    this.toolbar = this.renderer.createToolbar();
+    this.events.setupEvents();
+    this.settings.setupSettings(this.toolbar);
+    this.restorePosition();
 
-      this.loadSettings();
-
-      // 确保工具栏可见
-      if (this.toolbar) {
-        this.toolbar.style.display = "block";
-        this.toolbar.style.visibility = "visible";
-        this.toolbar.style.opacity = "1";
-      }
-    } catch (error) {
-      console.error("🔧 ToolbarManager: Error creating toolbar:", error);
-      throw error;
+    this.loadSettings();
+    if (this.toolbar) {
+      this.toolbar.style.display = "block";
+      this.toolbar.style.visibility = "visible";
+      this.toolbar.style.opacity = "1";
     }
   }
 
@@ -69,12 +62,10 @@ export class ToolbarManager {
       return;
     }
 
-    // 更新按钮状态
-    this.toolbar.querySelectorAll(".figma-tool-btn").forEach((btn) => {
+    this.toolbar.querySelectorAll(".draw-tool-btn").forEach((btn) => {
       btn.classList.toggle("active", (btn as HTMLButtonElement).dataset.mode === mode);
     });
 
-    // 显示/隐藏文本属性
     const textProps = this.toolbar.querySelector("#text-props") as HTMLElement;
     if (textProps) {
       textProps.style.display = mode === "text" ? "block" : "none";
@@ -122,8 +113,6 @@ export class ToolbarManager {
     }
 
     const options = this.drawingManager.getOptions();
-
-    // 文本对齐
     const align = options.textAlign || "left";
     this.toolbar.querySelectorAll(".draw-align-btn").forEach((btn) => {
       btn.classList.toggle("active", (btn as HTMLButtonElement).dataset.align === align);
@@ -149,7 +138,7 @@ export class ToolbarManager {
       const shapeMainBtn = this.toolbar.querySelector(".shape-main-btn") as HTMLButtonElement;
       if (shapeMainBtn) {
         // 移除所有按钮的active状态
-        this.toolbar.querySelectorAll(".figma-tool-btn").forEach((btn) => btn.classList.remove("active"));
+        this.toolbar.querySelectorAll(".draw-tool-btn").forEach((btn) => btn.classList.remove("active"));
         // 激活形状主按钮
         shapeMainBtn.classList.add("active");
         // 更新形状主按钮的data-mode
@@ -175,14 +164,10 @@ export class ToolbarManager {
       return;
     }
 
-    try {
-      const position = JSON.parse(localStorage.getItem("drawing-toolbar-position") || "{}");
-      if (position.x !== undefined && position.y !== undefined) {
-        this.toolbar.style.left = `${position.x}px`;
-        this.toolbar.style.top = `${position.y}px`;
-      }
-    } catch (error) {
-      console.warn("Failed to restore toolbar position:", error);
+    const position = JSON.parse(localStorage.getItem("drawing-toolbar-position") || "{}");
+    if (position.x !== undefined && position.y !== undefined) {
+      this.toolbar.style.left = `${position.x}px`;
+      this.toolbar.style.top = `${position.y}px`;
     }
   }
 
@@ -191,13 +176,9 @@ export class ToolbarManager {
       return;
     }
 
-    try {
-      const rect = this.toolbar.getBoundingClientRect();
-      const position = { x: rect.left, y: rect.top };
-      localStorage.setItem("drawing-toolbar-position", JSON.stringify(position));
-    } catch (error) {
-      console.warn("Failed to save toolbar position:", error);
-    }
+    const rect = this.toolbar.getBoundingClientRect();
+    const position = { x: rect.left, y: rect.top };
+    localStorage.setItem("drawing-toolbar-position", JSON.stringify(position));
   }
 
   private loadSettings(): void {

@@ -28,6 +28,3 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 export { controller as default };
-
-(window as any).debugToggle = () => controller.debugToggle();
-(window as any).getStatus = () => controller.getStatus();

@@ -59,13 +59,3 @@ export class ContentController {
     return this.toggle();
   }
 }
-
-const contentController = new ContentController();
-
-(window as any).drawingExtension = {
-  controller: contentController,
-  activate: () => contentController.activate(),
-  deactivate: () => contentController.deactivate(),
-  toggle: () => contentController.toggle(),
-  getStatus: () => contentController.getStatus(),
-};

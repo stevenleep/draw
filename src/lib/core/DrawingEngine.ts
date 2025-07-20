@@ -7,6 +7,7 @@ import { ToolManager } from "../plugins/ToolManager";
 
 export class DrawingEngine {
   private dirtyRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+
   /**
    * 标记脏区，自动转换为逻辑像素
    */
@@ -25,28 +26,37 @@ export class DrawingEngine {
   public markAllDirty(): void {
     this.dirtyRects = [{ x: 0, y: 0, width: this.canvas.width / this.dpr, height: this.canvas.height / this.dpr }];
   }
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private foregroundCanvas: HTMLCanvasElement;
-  private foregroundCtx: CanvasRenderingContext2D;
-  private offscreenCanvas: HTMLCanvasElement;
-  private offscreenCtx: CanvasRenderingContext2D;
-  private drawingState: DrawingState;
-  private textEditingState: TextEditingState;
-  private toolManager: ToolManager;
-  private renderer: DrawingRenderer;
-  private foregroundRenderer: DrawingRenderer;
-  private offscreenRenderer: DrawingRenderer;
-  private eventHandler: DrawingEventHandler;
+  private canvas!: HTMLCanvasElement;
+  private ctx!: CanvasRenderingContext2D;
+  private foregroundCanvas!: HTMLCanvasElement;
+  private foregroundCtx!: CanvasRenderingContext2D;
+  private offscreenCanvas!: HTMLCanvasElement;
+  private offscreenCtx!: CanvasRenderingContext2D;
+  private drawingState!: DrawingState;
+  private textEditingState!: TextEditingState;
+  private toolManager!: ToolManager;
+  private renderer!: DrawingRenderer;
+  private foregroundRenderer!: DrawingRenderer;
+  private offscreenRenderer!: DrawingRenderer;
+  private eventHandler!: DrawingEventHandler;
   private mode: DrawingMode = "pen";
   private onModeChange?: (mode: DrawingMode) => void;
   private dpr: number = window.devicePixelRatio || 1;
 
   constructor(canvasElement: HTMLCanvasElement) {
     this.canvas = canvasElement;
-    // 高分辨率支持
+    this._initDprAndCanvas(canvasElement);
+    this._initForegroundCanvas();
+    this._initStateAndTools();
+    this._initOffscreenBuffer();
+    this._initRenderers();
+    this._initEventHandler();
+    this.setMode("select");
+    this.updateStaticBuffer();
+  }
+
+  private _initDprAndCanvas(canvasElement: HTMLCanvasElement): void {
     this.dpr = window.devicePixelRatio || 1;
-    // 设置主canvas尺寸
     const width = canvasElement.width;
     const height = canvasElement.height;
     canvasElement.style.width = `${width}px`;
@@ -59,8 +69,11 @@ export class DrawingEngine {
     }
     this.ctx = ctx;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
 
-    // 创建前景canvas
+  private _initForegroundCanvas(): void {
+    const width = this.canvas.width / this.dpr;
+    const height = this.canvas.height / this.dpr;
     this.foregroundCanvas = document.createElement("canvas");
     this.foregroundCanvas.style.position = "absolute";
     this.foregroundCanvas.style.left = "0";
@@ -77,11 +90,17 @@ export class DrawingEngine {
     }
     this.foregroundCtx = foregroundCtx;
     this.foregroundCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
 
+  private _initStateAndTools(): void {
     this.drawingState = new DrawingState();
     this.textEditingState = new TextEditingState();
     this.toolManager = new ToolManager();
-    // Create offscreen buffer
+  }
+
+  private _initOffscreenBuffer(): void {
+    const width = this.canvas.width / this.dpr;
+    const height = this.canvas.height / this.dpr;
     this.offscreenCanvas = document.createElement("canvas");
     this.offscreenCanvas.width = width * this.dpr;
     this.offscreenCanvas.height = height * this.dpr;
@@ -91,23 +110,26 @@ export class DrawingEngine {
     }
     this.offscreenCtx = offscreenCtx;
     this.offscreenCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  }
 
+  private _initRenderers(): void {
     this.renderer = new DrawingRenderer(this.ctx, this.toolManager, this.textEditingState);
     this.foregroundRenderer = new DrawingRenderer(this.foregroundCtx, this.toolManager, this.textEditingState);
     this.offscreenRenderer = new DrawingRenderer(this.offscreenCtx, this.toolManager, this.textEditingState);
+  }
+
+  private _initEventHandler(): void {
     this.eventHandler = new DrawingEventHandler(this.canvas, this.drawingState, this.textEditingState, this.toolManager);
     this.eventHandler.setModeChangeCallback(this.handleModeChange.bind(this));
     this.eventHandler.setRedrawCallback(this.redrawCanvas.bind(this));
-    this.setMode("select");
-    this.updateStaticBuffer();
   }
 
   setMode(mode: DrawingMode): void {
+    if (this.mode === mode) {
+      return;
+    }
     this.mode = mode;
     this.eventHandler.setMode(mode);
-    if (this.onModeChange) {
-      this.onModeChange(mode);
-    }
   }
 
   getMode(): DrawingMode {
@@ -119,10 +141,10 @@ export class DrawingEngine {
   }
 
   private handleModeChange(mode: DrawingMode): void {
-    this.mode = mode;
-    if (this.onModeChange) {
-      this.onModeChange(mode);
+    if (this.mode === mode) {
+      return;
     }
+    this.mode = mode;
   }
 
   resize(width: number, height: number): void {
@@ -132,12 +154,14 @@ export class DrawingEngine {
     this.canvas.width = width * this.dpr;
     this.canvas.height = height * this.dpr;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
     // 前景canvas
     this.foregroundCanvas.style.width = `${width}px`;
     this.foregroundCanvas.style.height = `${height}px`;
     this.foregroundCanvas.width = width * this.dpr;
     this.foregroundCanvas.height = height * this.dpr;
     this.foregroundCtx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
     // 离屏canvas
     this.offscreenCanvas.width = width * this.dpr;
     this.offscreenCanvas.height = height * this.dpr;
@@ -148,7 +172,15 @@ export class DrawingEngine {
   }
 
   clear(): void {
-    this.drawingState.clear();
+    if (typeof this.drawingState.clearAll === "function") {
+      this.drawingState.clearAll();
+    } else {
+      // fallback: 移除所有对象
+      const objs = this.drawingState.getObjects();
+      for (const obj of objs) {
+        this.drawingState.removeObject(obj);
+      }
+    }
     this.updateStaticBuffer();
     this.dirtyRects = [{ x: 0, y: 0, width: this.canvas.width / this.dpr, height: this.canvas.height / this.dpr }];
     this.redrawCanvas();
@@ -181,17 +213,18 @@ export class DrawingEngine {
         this.ctx.restore();
       }
     }
+
     // 动态层（前景canvas）
     this.foregroundCtx.clearRect(0, 0, this.foregroundCanvas.width / this.dpr, this.foregroundCanvas.height / this.dpr);
     const currentDrawingObject = this.eventHandler.getCurrentDrawingObject();
-    const selectedObject = this.drawingState.getSelectedObject();
+    const selectedObject = this.drawingState.getSelected();
     if (currentDrawingObject) {
-      this.foregroundRenderer.renderObject(currentDrawingObject);
+      this.foregroundRenderer.drawObject(currentDrawingObject);
     }
-    this.foregroundRenderer.renderTextEditingOverlay(selectedObject);
+    this.foregroundRenderer.drawTextEditingOverlay(selectedObject);
     if (selectedObject) {
-      this.foregroundRenderer.renderSelectionBox(selectedObject);
-      this.foregroundRenderer.renderTransformHandles(this.eventHandler.getTransformHandles());
+      this.foregroundRenderer.drawSelectionBox(selectedObject);
+      this.foregroundRenderer.drawTransformHandles(this.eventHandler.getTransformHandles());
     }
     this.dirtyRects = [];
   }
@@ -202,6 +235,7 @@ export class DrawingEngine {
     if (rects.length <= 1) {
       return rects.slice();
     }
+
     // Simple O(n^2) merge for small N
     const merged: Array<{ x: number; y: number; width: number; height: number }> = [];
     const used = new Array(rects.length).fill(false);
@@ -250,7 +284,9 @@ export class DrawingEngine {
 
   private updateStaticBuffer(): void {
     this.offscreenCtx.clearRect(0, 0, this.offscreenCanvas.width / this.dpr, this.offscreenCanvas.height / this.dpr);
-    this.offscreenRenderer.renderObjects(this.drawingState.getObjects());
+    if (typeof this.offscreenRenderer.drawObjects === "function") {
+      this.offscreenRenderer.drawObjects(this.drawingState.getObjects());
+    }
   }
 
   getObjects(): DrawingObject[] {
@@ -258,7 +294,7 @@ export class DrawingEngine {
   }
 
   getSelectedObject(): DrawingObject | null {
-    return this.drawingState.getSelectedObject();
+    return this.drawingState.getSelected();
   }
 
   addObject(obj: DrawingObject): void {
@@ -270,10 +306,10 @@ export class DrawingEngine {
   }
 
   deleteSelected(): void {
-    const selectedObject = this.drawingState.getSelectedObject();
+    const selectedObject = this.drawingState.getSelected();
     if (selectedObject) {
       this._addOrRemoveObject(selectedObject, false);
-      this.drawingState.setSelectedObject(null);
+      this.drawingState.selectObject(null);
     }
   }
 
@@ -327,13 +363,13 @@ export class DrawingEngine {
 
   startTextEditing(textObj: DrawingObject): void {
     this.textEditingState.startEditing(textObj);
-    this.drawingState.setSelectedObject(textObj);
+    this.drawingState.selectObject(textObj);
     this.redrawCanvas();
   }
 
   finishTextEditing(): void {
     const newText = this.textEditingState.finishEditing();
-    const selectedObject = this.drawingState.getSelectedObject();
+    const selectedObject = this.drawingState.getSelected();
     if (selectedObject && selectedObject.type === "text") {
       selectedObject.text = newText;
       this.recalculateTextBounds(selectedObject);
