@@ -30,7 +30,9 @@ export class DrawingManager {
   }
 
   private async loadLibraries(): Promise<void> {
-    if (this.librariesLoaded) return;
+    if (this.librariesLoaded) {
+      return;
+    }
     try {
       this.librariesLoaded = true;
       console.log("🔧 DrawingManager: Libraries loaded successfully");
@@ -41,7 +43,9 @@ export class DrawingManager {
   }
 
   public async activate(): Promise<void> {
-    if (this.isActive || !this.librariesLoaded) return;
+    if (this.isActive || !this.librariesLoaded) {
+      return;
+    }
 
     try {
       console.log("🔧 DrawingManager: Starting activation...");
@@ -74,7 +78,9 @@ export class DrawingManager {
   }
 
   public deactivate(): void {
-    if (!this.isActive) return;
+    if (!this.isActive) {
+      return;
+    }
 
     console.log("🔧 DrawingManager: Starting deactivation...");
 
@@ -179,7 +185,9 @@ export class DrawingManager {
   }
 
   public async capture(includeBackground: boolean = true): Promise<string> {
-    if (!this.drawingEngine) throw new Error("Drawing engine not initialized");
+    if (!this.drawingEngine) {
+      throw new Error("Drawing engine not initialized");
+    }
     return includeBackground ? await this.drawingEngine.captureWithBackground() : this.drawingEngine.exportDrawing();
   }
 
@@ -193,7 +201,9 @@ export class DrawingManager {
   }
 
   public handleResize(): void {
-    if (!this.canvas || !this.drawingEngine) return;
+    if (!this.canvas || !this.drawingEngine) {
+      return;
+    }
 
     const { innerWidth: width, innerHeight: height } = window;
     this.canvas.width = width;

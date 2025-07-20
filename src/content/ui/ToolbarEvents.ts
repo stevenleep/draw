@@ -101,7 +101,6 @@ export class ToolbarEvents {
     let toolbarStart = { x: 0, y: 0 };
 
     const handleMouseDown = (e: MouseEvent) => {
-      // 检查是否点击了按钮或其他交互元素
       const target = e.target as HTMLElement;
       if (target.closest(".figma-tool-btn") || target.closest(".props-input") || target.closest(".props-slider")) {
         return;

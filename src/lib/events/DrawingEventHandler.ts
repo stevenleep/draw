@@ -75,7 +75,6 @@ export class DrawingEventHandler {
   private setupEventListeners(): void {
     this.canvas.tabIndex = 0;
     this.canvas.style.outline = "none";
-
     this.canvas.addEventListener("mousedown", this.handleMouseDown.bind(this));
     this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
     this.canvas.addEventListener("mouseup", this.handleMouseUp.bind(this));

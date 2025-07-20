@@ -1,7 +1,5 @@
 export class ToolbarRenderer {
   public createToolbar(): HTMLElement {
-    console.log("🔧 Creating toolbar...");
-
     const toolbar = document.createElement("div");
     toolbar.id = "drawing-toolbar-overlay";
     toolbar.innerHTML = this.getToolbarHTML();
@@ -30,11 +28,6 @@ export class ToolbarRenderer {
 
     this.injectStyles();
     document.body.appendChild(toolbar);
-
-    console.log("🔧 Toolbar created and appended to body");
-    console.log("🔧 Toolbar element:", toolbar);
-    console.log("🔧 Toolbar computed style:", window.getComputedStyle(toolbar));
-
     return toolbar;
   }
 
