@@ -1,7 +1,7 @@
-import { DrawingObject, DrawingOptions, DrawingMode } from '../lib';
+import { DrawingObject, DrawingOptions, DrawingMode } from "../lib";
 
 export interface PropertyChangeEvent {
-  type: 'style' | 'position' | 'size' | 'delete' | 'duplicate';
+  type: "style" | "position" | "size" | "delete" | "duplicate";
   object: DrawingObject;
   changes?: Partial<DrawingOptions & { x: number; y: number; width: number; height: number }>;
 }
@@ -32,8 +32,8 @@ export class PropertyPanel {
   private createPanel(position: { x: number; y: number }): void {
     this.hide();
 
-    this.panel = document.createElement('div');
-    this.panel.id = 'property-panel';
+    this.panel = document.createElement("div");
+    this.panel.id = "property-panel";
     this.panel.style.cssText = `
       position: fixed !important;
       left: ${Math.min(position.x, window.innerWidth - 280)}px !important;
@@ -59,7 +59,7 @@ export class PropertyPanel {
     document.body.appendChild(this.panel);
 
     setTimeout(() => {
-      document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
+      document.addEventListener("click", this.handleOutsideClick.bind(this), { once: true });
     }, 100);
   }
 
@@ -73,8 +73,8 @@ export class PropertyPanel {
     if (!this.panel || !this.currentObject) return;
 
     const obj = this.currentObject;
-    const isTextObject = obj.type === 'text';
-    const isShapeObject = ['rectangle', 'circle', 'star', 'triangle'].includes(obj.type);
+    const isTextObject = obj.type === "text";
+    const isShapeObject = ["rectangle", "circle", "star", "triangle"].includes(obj.type);
 
     this.panel.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
@@ -161,7 +161,9 @@ export class PropertyPanel {
               cursor: pointer;
             ">
           </div>
-          ${isShapeObject ? `
+          ${
+            isShapeObject
+              ? `
           <div style="flex: 1;">
             <label style="font-size: 10px; color: rgba(255,255,255,0.6);">填充</label>
             <input type="color" id="fill-color" value="${obj.options.fillColor || obj.options.color}" style="
@@ -173,17 +175,25 @@ export class PropertyPanel {
               cursor: pointer;
             ">
           </div>
-          ` : ''}
+          `
+              : ""
+          }
         </div>
-        ${isShapeObject ? `
+        ${
+          isShapeObject
+            ? `
         <label style="display: flex; align-items: center; margin-top: 8px; font-size: 12px; cursor: pointer;">
-          <input type="checkbox" id="has-fill" ${obj.options.hasFill ? 'checked' : ''} style="margin-right: 8px;">
+          <input type="checkbox" id="has-fill" ${obj.options.hasFill ? "checked" : ""} style="margin-right: 8px;">
           启用填充
         </label>
-        ` : ''}
+        `
+            : ""
+        }
       </div>
 
-      ${!isTextObject ? `
+      ${
+        !isTextObject
+          ? `
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">线条</label>
         <div style="margin-bottom: 8px;">
@@ -201,14 +211,18 @@ export class PropertyPanel {
           ">
         </div>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
 
-      ${isTextObject ? `
+      ${
+        isTextObject
+          ? `
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">文字</label>
         <div style="margin-bottom: 8px;">
           <label style="font-size: 10px; color: rgba(255,255,255,0.6);">内容</label>
-          <input type="text" id="text-content" value="${obj.text || ''}" style="
+          <input type="text" id="text-content" value="${obj.text || ""}" style="
             width: 100%;
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
@@ -243,10 +257,10 @@ export class PropertyPanel {
               border-radius: 6px;
               font-size: 12px;
             ">
-              <option value="Arial" ${obj.options.fontFamily === 'Arial' ? 'selected' : ''}>Arial</option>
-              <option value="Times New Roman" ${obj.options.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times</option>
-              <option value="Courier New" ${obj.options.fontFamily === 'Courier New' ? 'selected' : ''}>Courier</option>
-              <option value="Helvetica" ${obj.options.fontFamily === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+              <option value="Arial" ${obj.options.fontFamily === "Arial" ? "selected" : ""}>Arial</option>
+              <option value="Times New Roman" ${obj.options.fontFamily === "Times New Roman" ? "selected" : ""}>Times</option>
+              <option value="Courier New" ${obj.options.fontFamily === "Courier New" ? "selected" : ""}>Courier</option>
+              <option value="Helvetica" ${obj.options.fontFamily === "Helvetica" ? "selected" : ""}>Helvetica</option>
             </select>
           </div>
         </div>
@@ -260,8 +274,8 @@ export class PropertyPanel {
             border-radius: 6px;
             font-size: 12px;
           ">
-            <option value="normal" ${obj.options.fontWeight === 'normal' ? 'selected' : ''}>普通</option>
-            <option value="bold" ${obj.options.fontWeight === 'bold' ? 'selected' : ''}>加粗</option>
+            <option value="normal" ${obj.options.fontWeight === "normal" ? "selected" : ""}>普通</option>
+            <option value="bold" ${obj.options.fontWeight === "bold" ? "selected" : ""}>加粗</option>
           </select>
           <select id="text-align" style="
             flex: 1;
@@ -272,20 +286,22 @@ export class PropertyPanel {
             border-radius: 6px;
             font-size: 12px;
           ">
-            <option value="left" ${obj.options.textAlign === 'left' ? 'selected' : ''}>左对齐</option>
-            <option value="center" ${obj.options.textAlign === 'center' ? 'selected' : ''}>居中</option>
-            <option value="right" ${obj.options.textAlign === 'right' ? 'selected' : ''}>右对齐</option>
+            <option value="left" ${obj.options.textAlign === "left" ? "selected" : ""}>左对齐</option>
+            <option value="center" ${obj.options.textAlign === "center" ? "selected" : ""}>居中</option>
+            <option value="right" ${obj.options.textAlign === "right" ? "selected" : ""}>右对齐</option>
           </select>
         </div>
       </div>
-      ` : ''}
+      `
+          : ""
+      }
 
       <div style="margin-bottom: 8px;">
         <label style="display: block; margin-bottom: 8px; font-size: 12px; color: rgba(255,255,255,0.8);">阴影效果</label>
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <div style="flex: 1;">
             <label style="font-size: 10px; color: rgba(255,255,255,0.6);">颜色</label>
-            <input type="color" id="shadow-color" value="${obj.options.shadowColor || '#000000'}" style="
+            <input type="color" id="shadow-color" value="${obj.options.shadowColor || "#000000"}" style="
               width: 100%;
               height: 28px;
               background: none;
@@ -311,50 +327,52 @@ export class PropertyPanel {
   private attachEventListeners(): void {
     if (!this.panel || !this.currentObject) return;
 
-    const closeBtn = this.panel.querySelector('#close-panel');
-    closeBtn?.addEventListener('click', () => this.hide());
+    const closeBtn = this.panel.querySelector("#close-panel");
+    closeBtn?.addEventListener("click", () => this.hide());
 
-    const duplicateBtn = this.panel.querySelector('#duplicate-btn');
-    duplicateBtn?.addEventListener('click', () => {
+    const duplicateBtn = this.panel.querySelector("#duplicate-btn");
+    duplicateBtn?.addEventListener("click", () => {
       if (this.currentObject && this.onPropertyChange) {
-        this.onPropertyChange({ type: 'duplicate', object: this.currentObject });
+        this.onPropertyChange({ type: "duplicate", object: this.currentObject });
       }
     });
 
-    const deleteBtn = this.panel.querySelector('#delete-btn');
-    deleteBtn?.addEventListener('click', () => {
+    const deleteBtn = this.panel.querySelector("#delete-btn");
+    deleteBtn?.addEventListener("click", () => {
       if (this.currentObject && this.onPropertyChange) {
-        this.onPropertyChange({ type: 'delete', object: this.currentObject });
+        this.onPropertyChange({ type: "delete", object: this.currentObject });
         this.hide();
       }
     });
 
-    const posXInput = this.panel.querySelector('#pos-x') as HTMLInputElement;
-    const posYInput = this.panel.querySelector('#pos-y') as HTMLInputElement;
-    [posXInput, posYInput].forEach(input => {
-      input?.addEventListener('change', () => this.handlePositionChange());
+    const posXInput = this.panel.querySelector("#pos-x") as HTMLInputElement;
+    const posYInput = this.panel.querySelector("#pos-y") as HTMLInputElement;
+    [posXInput, posYInput].forEach((input) => {
+      input?.addEventListener("change", () => this.handlePositionChange());
     });
 
-    const styleInputs = this.panel.querySelectorAll('#main-color, #fill-color, #has-fill, #stroke-width, #opacity, #text-content, #font-size, #font-family, #font-weight, #text-align, #shadow-color, #shadow-blur');
-    styleInputs.forEach(input => {
-      input.addEventListener('change', () => this.handleStyleChange());
+    const styleInputs = this.panel.querySelectorAll(
+      "#main-color, #fill-color, #has-fill, #stroke-width, #opacity, #text-content, #font-size, #font-family, #font-weight, #text-align, #shadow-color, #shadow-blur",
+    );
+    styleInputs.forEach((input) => {
+      input.addEventListener("change", () => this.handleStyleChange());
     });
   }
 
   private handlePositionChange(): void {
     if (!this.currentObject || !this.onPropertyChange) return;
 
-    const posXInput = this.panel?.querySelector('#pos-x') as HTMLInputElement;
-    const posYInput = this.panel?.querySelector('#pos-y') as HTMLInputElement;
+    const posXInput = this.panel?.querySelector("#pos-x") as HTMLInputElement;
+    const posYInput = this.panel?.querySelector("#pos-y") as HTMLInputElement;
 
     if (posXInput && posYInput) {
       const x = parseInt(posXInput.value);
       const y = parseInt(posYInput.value);
 
       this.onPropertyChange({
-        type: 'position',
+        type: "position",
         object: this.currentObject,
-        changes: { x, y }
+        changes: { x, y },
       });
     }
   }
@@ -365,68 +383,68 @@ export class PropertyPanel {
     const changes: any = {};
 
     // 颜色
-    const mainColorInput = this.panel?.querySelector('#main-color') as HTMLInputElement;
+    const mainColorInput = this.panel?.querySelector("#main-color") as HTMLInputElement;
     if (mainColorInput) changes.color = mainColorInput.value;
 
-    const fillColorInput = this.panel?.querySelector('#fill-color') as HTMLInputElement;
+    const fillColorInput = this.panel?.querySelector("#fill-color") as HTMLInputElement;
     if (fillColorInput) changes.fillColor = fillColorInput.value;
 
-    const hasFillInput = this.panel?.querySelector('#has-fill') as HTMLInputElement;
+    const hasFillInput = this.panel?.querySelector("#has-fill") as HTMLInputElement;
     if (hasFillInput) changes.hasFill = hasFillInput.checked;
 
     // 线条
-    const strokeWidthInput = this.panel?.querySelector('#stroke-width') as HTMLInputElement;
+    const strokeWidthInput = this.panel?.querySelector("#stroke-width") as HTMLInputElement;
     if (strokeWidthInput) changes.strokeWidth = parseInt(strokeWidthInput.value);
 
-    const opacityInput = this.panel?.querySelector('#opacity') as HTMLInputElement;
+    const opacityInput = this.panel?.querySelector("#opacity") as HTMLInputElement;
     if (opacityInput) changes.opacity = parseFloat(opacityInput.value);
 
     // 文字
-    const textContentInput = this.panel?.querySelector('#text-content') as HTMLInputElement;
-    if (textContentInput && this.currentObject.type === 'text') {
+    const textContentInput = this.panel?.querySelector("#text-content") as HTMLInputElement;
+    if (textContentInput && this.currentObject.type === "text") {
       this.currentObject.text = textContentInput.value;
     }
 
-    const fontSizeInput = this.panel?.querySelector('#font-size') as HTMLInputElement;
+    const fontSizeInput = this.panel?.querySelector("#font-size") as HTMLInputElement;
     if (fontSizeInput) changes.fontSize = parseInt(fontSizeInput.value);
 
-    const fontFamilyInput = this.panel?.querySelector('#font-family') as HTMLSelectElement;
+    const fontFamilyInput = this.panel?.querySelector("#font-family") as HTMLSelectElement;
     if (fontFamilyInput) changes.fontFamily = fontFamilyInput.value;
 
-    const fontWeightInput = this.panel?.querySelector('#font-weight') as HTMLSelectElement;
+    const fontWeightInput = this.panel?.querySelector("#font-weight") as HTMLSelectElement;
     if (fontWeightInput) changes.fontWeight = fontWeightInput.value;
 
-    const textAlignInput = this.panel?.querySelector('#text-align') as HTMLSelectElement;
-    if (textAlignInput) changes.textAlign = textAlignInput.value as 'left' | 'center' | 'right';
+    const textAlignInput = this.panel?.querySelector("#text-align") as HTMLSelectElement;
+    if (textAlignInput) changes.textAlign = textAlignInput.value as "left" | "center" | "right";
 
     // 阴影
-    const shadowColorInput = this.panel?.querySelector('#shadow-color') as HTMLInputElement;
+    const shadowColorInput = this.panel?.querySelector("#shadow-color") as HTMLInputElement;
     if (shadowColorInput) changes.shadowColor = shadowColorInput.value;
 
-    const shadowBlurInput = this.panel?.querySelector('#shadow-blur') as HTMLInputElement;
+    const shadowBlurInput = this.panel?.querySelector("#shadow-blur") as HTMLInputElement;
     if (shadowBlurInput) changes.shadowBlur = parseInt(shadowBlurInput.value);
 
     this.onPropertyChange({
-      type: 'style',
+      type: "style",
       object: this.currentObject,
-      changes
+      changes,
     });
   }
 
   private getObjectTypeName(type: DrawingMode): string {
     const names: Record<DrawingMode, string> = {
-      'select': '选择',
-      'pen': '画笔',
-      'arrow': '箭头',
-      'rectangle': '矩形',
-      'circle': '圆形',
-      'text': '文字',
-      'hand-drawn': '手绘',
-      'line': '直线',
-      'eraser': '橡皮擦',
-      'highlighter': '荧光笔',
-      'star': '星形',
-      'triangle': '三角形'
+      select: "选择",
+      pen: "画笔",
+      arrow: "箭头",
+      rectangle: "矩形",
+      circle: "圆形",
+      text: "文字",
+      "hand-drawn": "手绘",
+      line: "直线",
+      eraser: "橡皮擦",
+      highlighter: "荧光笔",
+      star: "星形",
+      triangle: "三角形",
     };
     return names[type] || type;
   }

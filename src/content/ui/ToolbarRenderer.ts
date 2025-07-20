@@ -1,11 +1,11 @@
 export class ToolbarRenderer {
   public createToolbar(): HTMLElement {
-    console.log('🔧 Creating toolbar...');
-    
-    const toolbar = document.createElement('div');
-    toolbar.id = 'drawing-toolbar-overlay';
+    console.log("🔧 Creating toolbar...");
+
+    const toolbar = document.createElement("div");
+    toolbar.id = "drawing-toolbar-overlay";
     toolbar.innerHTML = this.getToolbarHTML();
-    
+
     // 确保工具栏可见
     toolbar.style.cssText = `
       position: fixed !important;
@@ -27,14 +27,14 @@ export class ToolbarRenderer {
       cursor: grab !important;
       transition: all 0.2s ease !important;
     `;
-    
+
     this.injectStyles();
     document.body.appendChild(toolbar);
-    
-    console.log('🔧 Toolbar created and appended to body');
-    console.log('🔧 Toolbar element:', toolbar);
-    console.log('🔧 Toolbar computed style:', window.getComputedStyle(toolbar));
-    
+
+    console.log("🔧 Toolbar created and appended to body");
+    console.log("🔧 Toolbar element:", toolbar);
+    console.log("🔧 Toolbar computed style:", window.getComputedStyle(toolbar));
+
     return toolbar;
   }
 
@@ -272,7 +272,7 @@ export class ToolbarRenderer {
   }
 
   private injectStyles(): void {
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = this.getToolbarStyles();
     document.head.appendChild(style);
   }
@@ -549,4 +549,4 @@ export class ToolbarRenderer {
       }
     `;
   }
-} 
+}

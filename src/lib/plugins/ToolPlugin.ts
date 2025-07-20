@@ -1,4 +1,4 @@
-import type { DrawingObject as EngineDrawingObject, DrawingOptions as EngineDrawingOptions, DrawingMode } from '../core/types';
+import type { DrawingOptions as EngineDrawingOptions, DrawingMode } from "../core/types";
 
 export type { DrawingMode };
 

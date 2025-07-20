@@ -1,14 +1,14 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from "./ToolPlugin";
 
 export class CircleTool extends ToolPlugin {
   constructor() {
     super(
-      'circle',
-      'circle' as DrawingMode,
+      "circle",
+      "circle" as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
-      '圆形工具 (快捷键: 4)'
+      "圆形工具 (快捷键: 4)",
     );
   }
 
@@ -23,7 +23,7 @@ export class CircleTool extends ToolPlugin {
       startPoint: point,
       endPoint: point,
       options: { ...context.options },
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 }
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
     };
 
     return obj;
@@ -43,15 +43,17 @@ export class CircleTool extends ToolPlugin {
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
     startObject.endPoint = { ...point };
     startObject.bounds = this.calculateBounds(startObject, context);
-    
+
     return startObject;
   }
 
   render(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
-    
+
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity;
@@ -86,7 +88,9 @@ export class CircleTool extends ToolPlugin {
   }
 
   private renderPreview(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
@@ -106,7 +110,9 @@ export class CircleTool extends ToolPlugin {
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
-    if (!obj.endPoint) return false;
+    if (!obj.endPoint) {
+      return false;
+    }
 
     const centerX = (obj.startPoint.x + obj.endPoint.x) / 2;
     const centerY = (obj.startPoint.y + obj.endPoint.y) / 2;
@@ -116,10 +122,10 @@ export class CircleTool extends ToolPlugin {
     const dx = (point.x - centerX) / (radiusX + margin);
     const dy = (point.y - centerY) / (radiusY + margin);
 
-    return (dx * dx + dy * dy) <= 1;
+    return dx * dx + dy * dy <= 1;
   }
 
-  calculateBounds(obj: DrawingObject, context: ToolContext): { x: number; y: number; width: number; height: number } {
+  calculateBounds(obj: DrawingObject, _context: ToolContext): { x: number; y: number; width: number; height: number } {
     if (!obj.endPoint) {
       return { x: obj.startPoint.x, y: obj.startPoint.y, width: 0, height: 0 };
     }
@@ -136,7 +142,7 @@ export class CircleTool extends ToolPlugin {
       x: x1 - padding,
       y: y1 - padding,
       width: x2 - x1 + strokeWidth,
-      height: y2 - y1 + strokeWidth
+      height: y2 - y1 + strokeWidth,
     };
   }
 }

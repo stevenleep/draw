@@ -1,9 +1,9 @@
-import { DrawingMode, DrawingObject, DrawingOptions } from './types';
-import { DrawingState } from '../state/DrawingState';
-import { TextEditingState } from '../state/TextEditingState';
-import { DrawingRenderer } from '../rendering/DrawingRenderer';
-import { DrawingEventHandler } from '../events/DrawingEventHandler';
-import { ToolManager } from '../plugins/ToolManager';
+import { DrawingMode, DrawingObject, DrawingOptions } from "./types";
+import { DrawingState } from "../state/DrawingState";
+import { TextEditingState } from "../state/TextEditingState";
+import { DrawingRenderer } from "../rendering/DrawingRenderer";
+import { DrawingEventHandler } from "../events/DrawingEventHandler";
+import { ToolManager } from "../plugins/ToolManager";
 
 export class DrawingEngine {
   private canvas: HTMLCanvasElement;
@@ -13,32 +13,29 @@ export class DrawingEngine {
   private toolManager: ToolManager;
   private renderer: DrawingRenderer;
   private eventHandler: DrawingEventHandler;
-  private mode: DrawingMode = 'pen';
+  private mode: DrawingMode = "pen";
   private onModeChange?: (mode: DrawingMode) => void;
 
   constructor(canvasElement: HTMLCanvasElement) {
     this.canvas = canvasElement;
-    this.ctx = canvasElement.getContext('2d')!;
+    const ctx = canvasElement.getContext("2d");
+    if (!ctx) {
+      throw new Error("Failed to get 2D context from canvas element.");
+    }
+    this.ctx = ctx;
     this.drawingState = new DrawingState();
     this.textEditingState = new TextEditingState();
     this.toolManager = new ToolManager();
     this.renderer = new DrawingRenderer(this.ctx, this.toolManager, this.textEditingState);
-    this.eventHandler = new DrawingEventHandler(
-      this.canvas,
-      this.drawingState,
-      this.textEditingState,
-      this.toolManager
-    );
+    this.eventHandler = new DrawingEventHandler(this.canvas, this.drawingState, this.textEditingState, this.toolManager);
     this.eventHandler.setModeChangeCallback(this.handleModeChange.bind(this));
     this.eventHandler.setRedrawCallback(this.redrawCanvas.bind(this));
-    this.setMode('select');
-    console.log('🎨 DrawingEngine initialized');
+    this.setMode("select");
   }
 
   setMode(mode: DrawingMode): void {
     this.mode = mode;
     this.eventHandler.setMode(mode);
-    console.log('✏️ Mode set to:', mode);
     if (this.onModeChange) {
       this.onModeChange(mode);
     }
@@ -150,7 +147,7 @@ export class DrawingEngine {
   finishTextEditing(): void {
     const newText = this.textEditingState.finishEditing();
     const selectedObject = this.drawingState.getSelectedObject();
-    if (selectedObject && selectedObject.type === 'text') {
+    if (selectedObject && selectedObject.type === "text") {
       selectedObject.text = newText;
       this.recalculateTextBounds(selectedObject);
       this.redrawCanvas();
@@ -167,36 +164,36 @@ export class DrawingEngine {
   }
 
   private recalculateTextBounds(textObject: DrawingObject): void {
-    this.ctx.font = `${textObject.options.fontWeight || 'normal'} ${textObject.options.fontSize}px ${textObject.options.fontFamily || 'Arial'}`;
-    const textMetrics = this.ctx.measureText(textObject.text || '');
+    const LINE_HEIGHT_MULTIPLIER = 1.2;
+    this.ctx.font = `${textObject.options.fontWeight || "normal"} ${textObject.options.fontSize}px ${textObject.options.fontFamily || "Arial"}`;
+    const textMetrics = this.ctx.measureText(textObject.text || "");
     const textWidth = textMetrics.width;
-    const textHeight = textObject.options.fontSize * 1.2;
-    const textAlign = textObject.options.textAlign || 'left';
+    const textHeight = textObject.options.fontSize * LINE_HEIGHT_MULTIPLIER;
+    const textAlign = textObject.options.textAlign || "left";
     let x = textObject.startPoint.x;
-    if (textAlign === 'center') {
+    if (textAlign === "center") {
       x = textObject.startPoint.x - textWidth / 2;
-    } else if (textAlign === 'right') {
+    } else if (textAlign === "right") {
       x = textObject.startPoint.x - textWidth;
     }
     textObject.bounds = {
-      x: x,
+      x,
       y: textObject.startPoint.y - textHeight / 2,
       width: textWidth,
-      height: textHeight
+      height: textHeight,
     };
   }
 
   exportDrawing(): string {
-    return this.canvas.toDataURL('image/png');
+    return this.canvas.toDataURL("image/png");
   }
 
   async captureWithBackground(): Promise<string> {
-    return this.canvas.toDataURL('image/png');
+    return this.canvas.toDataURL("image/png");
   }
 
   destroy(): void {
     this.textEditingState.destroy();
     this.eventHandler.destroy();
-    console.log('🗑️ DrawingEngine destroyed');
   }
-} 
+}

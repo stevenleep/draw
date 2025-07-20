@@ -1,15 +1,15 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from "./ToolPlugin";
 
 export class PenTool extends ToolPlugin {
   constructor() {
     super(
-      'pen',
-      'pen' as DrawingMode,
+      "pen",
+      "pen" as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M2 14L14 2M14 2L11 2M14 2L14 5" stroke="currentColor" stroke-width="1.5" fill="none"/>
         <circle cx="2" cy="14" r="1" fill="currentColor"/>
       </svg>`,
-      '画笔工具 (快捷键: 1)'
+      "画笔工具 (快捷键: 1)",
     );
   }
 
@@ -24,19 +24,23 @@ export class PenTool extends ToolPlugin {
       startPoint: point,
       points: [{ ...point }],
       options: { ...context.options },
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 }
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
     };
     return obj;
   }
 
   continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
-    if (!startObject.points) return;
+    if (!startObject.points) {
+      return;
+    }
     startObject.points.push({ ...point });
     startObject.bounds = this.calculateBounds(startObject, context);
   }
 
   updateDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject | null {
-    if (!startObject.points) return null;
+    if (!startObject.points) {
+      return null;
+    }
     startObject.points.push({ ...point });
     startObject.bounds = this.calculateBounds(startObject, context);
     return startObject;
@@ -51,12 +55,14 @@ export class PenTool extends ToolPlugin {
   }
 
   render(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.points || obj.points.length === 0) return;
+    if (!obj.points || obj.points.length === 0) {
+      return;
+    }
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
-    context.ctx.lineCap = 'round';
-    context.ctx.lineJoin = 'round';
+    context.ctx.lineCap = "round";
+    context.ctx.lineJoin = "round";
     context.ctx.globalAlpha = obj.options.opacity;
     if (obj.options.lineDash && obj.options.lineDash.length > 0) {
       context.ctx.setLineDash(obj.options.lineDash);
@@ -71,15 +77,19 @@ export class PenTool extends ToolPlugin {
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
-    if (!obj.points || obj.points.length < 2) return false;
+    if (!obj.points || obj.points.length < 2) {
+      return false;
+    }
     for (let i = 1; i < obj.points.length; i++) {
-      const distance = this.distanceToLineSegment(point, obj.points[i-1], obj.points[i]);
-      if (distance <= margin) return true;
+      const distance = this.distanceToLineSegment(point, obj.points[i - 1], obj.points[i]);
+      if (distance <= margin) {
+        return true;
+      }
     }
     return false;
   }
 
-  calculateBounds(obj: DrawingObject, context: ToolContext): { x: number; y: number; width: number; height: number } {
+  calculateBounds(obj: DrawingObject, _context: ToolContext): { x: number; y: number; width: number; height: number } {
     if (!obj.points || obj.points.length === 0) {
       return { x: 0, y: 0, width: 0, height: 0 };
     }
@@ -99,7 +109,7 @@ export class PenTool extends ToolPlugin {
       x: minX - padding,
       y: minY - padding,
       width: maxX - minX + strokeWidth,
-      height: maxY - minY + strokeWidth
+      height: maxY - minY + strokeWidth,
     };
   }
 

@@ -10,14 +10,14 @@ graph TB
             BH[Message Handler]
             BS[Script Injection]
         end
-        
+
         subgraph "Content Script"
             CC[ContentController]
             DM[DrawingManager]
             TM[ToolbarManager]
             MH[MessageHandler]
         end
-        
+
         subgraph "Drawing Engine"
             DE[DrawingEngine]
             DS[DrawingState]
@@ -26,7 +26,7 @@ graph TB
             TE[TextEditingState]
             EH[DrawingEventHandler]
         end
-        
+
         subgraph "Tool Plugins"
             PT[PenTool]
             RT[RectangleTool]
@@ -41,7 +41,7 @@ graph TB
             TRT[TriangleTool]
             SET[SelectTool]
         end
-        
+
         subgraph "UI Layer"
             TR[ToolbarRenderer]
             TEV[ToolbarEvents]
@@ -49,26 +49,26 @@ graph TB
             PP[PropertyPanel]
         end
     end
-    
+
     subgraph "Web Page"
         CO[Canvas Overlay]
         WP[Target Page]
     end
-    
+
     BI --> BH
     BH --> BS
     BS --> CC
     CC --> DM
     CC --> TM
     CC --> MH
-    
+
     DM --> DE
     DE --> DS
     DE --> TLM
     DE --> DR
     DE --> TE
     DE --> EH
-    
+
     TLM --> PT
     TLM --> RT
     TLM --> CT
@@ -81,12 +81,12 @@ graph TB
     TLM --> ST
     TLM --> TRT
     TLM --> SET
-    
+
     TM --> TR
     TM --> TEV
     TM --> SM
     TM --> PP
-    
+
     DE --> CO
     CO --> WP
 ```
@@ -98,33 +98,33 @@ flowchart LR
     subgraph "User Interaction"
         UI[User Input]
     end
-    
+
     subgraph "UI Layer"
         TB[Toolbar]
         PP[Property Panel]
     end
-    
+
     subgraph "Control Layer"
         CC[ContentController]
         DM[DrawingManager]
         TM[ToolbarManager]
     end
-    
+
     subgraph "Engine Layer"
         DE[DrawingEngine]
         TLM[ToolManager]
         DS[DrawingState]
     end
-    
+
     subgraph "Plugin Layer"
         TP[Tool Plugin]
     end
-    
+
     subgraph "Rendering Layer"
         DR[DrawingRenderer]
         CO[Canvas Overlay]
     end
-    
+
     UI --> TB
     UI --> PP
     TB --> CC
@@ -152,7 +152,7 @@ classDiagram
         +toggle()
         +getStatus()
     }
-    
+
     class DrawingManager {
         -drawingEngine: DrawingEngine
         -canvas: HTMLCanvasElement
@@ -162,7 +162,7 @@ classDiagram
         +setMode()
         +setOptions()
     }
-    
+
     class DrawingEngine {
         -canvas: HTMLCanvasElement
         -drawingState: DrawingState
@@ -173,7 +173,7 @@ classDiagram
         +setOptions()
         +redrawCanvas()
     }
-    
+
     class ToolManager {
         -tools: Map<string, ToolPlugin>
         -currentTool: ToolPlugin
@@ -181,7 +181,7 @@ classDiagram
         +setCurrentTool()
         +getCurrentTool()
     }
-    
+
     class ToolPlugin {
         <<abstract>>
         +name: string
@@ -194,7 +194,7 @@ classDiagram
         +render()
         +hitTest()
     }
-    
+
     class DrawingState {
         -objects: DrawingObject[]
         -selectedObject: DrawingObject
@@ -205,7 +205,7 @@ classDiagram
         +undo()
         +redo()
     }
-    
+
     class DrawingRenderer {
         -ctx: CanvasRenderingContext2D
         -toolManager: ToolManager
@@ -213,7 +213,7 @@ classDiagram
         +renderObject()
         +renderSelectionBox()
     }
-    
+
     class ToolbarManager {
         -toolbar: HTMLElement
         -drawingManager: DrawingManager
@@ -223,7 +223,7 @@ classDiagram
         +destroy()
         +setMode()
     }
-    
+
     ContentController --> DrawingManager
     ContentController --> ToolbarManager
     DrawingManager --> DrawingEngine
@@ -245,7 +245,7 @@ sequenceDiagram
     participant Toolbar as ToolbarManager
     participant Engine as DrawingEngine
     participant Canvas as Canvas Overlay
-    
+
     User->>Background: Click Extension Icon
     Background->>Content: Send Toggle Message
     Content->>Drawing: Activate Drawing Mode
@@ -253,22 +253,22 @@ sequenceDiagram
     Drawing->>Engine: Initialize Drawing Engine
     Content->>Toolbar: Create Toolbar
     Toolbar->>Canvas: Position Toolbar
-    
+
     Note over Canvas: Drawing Mode Ready
-    
+
     User->>Toolbar: Select Tool
     Toolbar->>Engine: Set Drawing Mode
     Engine->>Canvas: Update Cursor
-    
+
     User->>Canvas: Start Drawing
     Canvas->>Engine: Mouse Down Event
     Engine->>Engine: Create Drawing Object
-    
+
     User->>Canvas: Move Mouse
     Canvas->>Engine: Mouse Move Event
     Engine->>Engine: Update Drawing Object
     Engine->>Canvas: Redraw Canvas
-    
+
     User->>Canvas: End Drawing
     Canvas->>Engine: Mouse Up Event
     Engine->>Engine: Finalize Drawing Object
@@ -284,7 +284,7 @@ graph TB
             TM[ToolManager]
             CT[Current Tool]
         end
-        
+
         subgraph "Tool Plugins"
             subgraph "Basic Tools"
                 PT[PenTool]
@@ -292,14 +292,14 @@ graph TB
                 CT2[CircleTool]
                 TT[TextTool]
             end
-            
+
             subgraph "Advanced Tools"
                 AT[ArrowTool]
                 LT[LineTool]
                 HT[HandDrawnTool]
                 ET[EraserTool]
             end
-            
+
             subgraph "Special Tools"
                 HLT[HighlighterTool]
                 ST[StarTool]
@@ -307,13 +307,13 @@ graph TB
                 SET[SelectTool]
             end
         end
-        
+
         subgraph "Tool Interface"
             TPI[ToolPlugin Interface]
             TPIM[ToolPlugin Methods]
         end
     end
-    
+
     TM --> CT
     TM --> PT
     TM --> RT
@@ -327,7 +327,7 @@ graph TB
     TM --> ST
     TM --> TRT
     TM --> SET
-    
+
     PT -.-> TPI
     RT -.-> TPI
     CT2 -.-> TPI
@@ -340,7 +340,7 @@ graph TB
     ST -.-> TPI
     TRT -.-> TPI
     SET -.-> TPI
-    
+
     TPI --> TPIM
 ```
 
@@ -349,19 +349,19 @@ graph TB
 ```mermaid
 stateDiagram-v2
     [*] --> ExtensionInactive
-    
+
     ExtensionInactive --> ExtensionActive : User clicks extension icon
     ExtensionActive --> DrawingInactive : Content script loads
-    
+
     DrawingInactive --> DrawingActive : User activates drawing mode
     DrawingActive --> ToolSelected : User selects a tool
-    
+
     ToolSelected --> DrawingInProgress : User starts drawing
     DrawingInProgress --> DrawingActive : User finishes drawing
-    
+
     DrawingActive --> DrawingInactive : User deactivates drawing mode
     DrawingInactive --> ExtensionInactive : User deactivates extension
-    
+
     state DrawingInProgress {
         [*] --> MouseDown
         MouseDown --> MouseMove : Mouse moves
@@ -369,7 +369,7 @@ stateDiagram-v2
         MouseMove --> MouseUp : Mouse released
         MouseUp --> [*]
     }
-    
+
     state ToolSelected {
         [*] --> PenTool
         [*] --> RectangleTool
@@ -393,29 +393,29 @@ graph TD
     A[src/] --> B[background.ts]
     A --> C[content/]
     A --> D[lib/]
-    
+
     C --> E[content.ts]
     C --> F[ContentController.ts]
     C --> G[core/]
     C --> H[ui/]
-    
+
     G --> I[DrawingManager.ts]
     G --> J[MessageHandler.ts]
-    
+
     H --> K[ToolbarManager.ts]
     H --> L[ToolbarRenderer.ts]
     H --> M[ToolbarEvents.ts]
     H --> N[SettingsManager.ts]
-    
+
     D --> O[core/]
     D --> P[plugins/]
     D --> Q[state/]
     D --> R[events/]
     D --> S[rendering/]
-    
+
     O --> T[DrawingEngine.ts]
     O --> U[types.ts]
-    
+
     P --> V[ToolManager.ts]
     P --> W[ToolPlugin.ts]
     P --> X[PenTool.ts]
@@ -430,12 +430,12 @@ graph TD
     P --> GG[StarTool.ts]
     P --> HH[TriangleTool.ts]
     P --> II[SelectTool.ts]
-    
+
     Q --> JJ[DrawingState.ts]
     Q --> KK[TextEditingState.ts]
-    
+
     R --> LL[DrawingEventHandler.ts]
-    
+
     S --> MM[DrawingRenderer.ts]
 ```
 
@@ -446,19 +446,19 @@ graph TB
     subgraph "Application Layer"
         AL[Browser Extension]
     end
-    
+
     subgraph "Framework Layer"
         FL[TypeScript]
         FL2[Vite]
         FL3[Chrome Extension API]
     end
-    
+
     subgraph "Core APIs"
         CA[Canvas API]
         CA2[DOM API]
         CA3[Manifest V3]
     end
-    
+
     subgraph "Design Patterns"
         DP[Plugin Pattern]
         DP2[Observer Pattern]
@@ -466,28 +466,28 @@ graph TB
         DP4[Factory Pattern]
         DP5[Strategy Pattern]
     end
-    
+
     subgraph "Performance"
         PF[Canvas Optimization]
         PF2[Event Delegation]
         PF3[Memory Management]
         PF4[RequestAnimationFrame]
     end
-    
+
     AL --> FL
     AL --> FL2
     AL --> FL3
-    
+
     FL --> CA
     FL --> CA2
     FL --> CA3
-    
+
     CA --> DP
     CA --> DP2
     CA --> DP3
     CA --> DP4
     CA --> DP5
-    
+
     DP --> PF
     DP2 --> PF2
     DP3 --> PF3
@@ -505,4 +505,4 @@ graph TB
 7. **文件结构树** - 展示了项目的文件组织
 8. **技术栈层次** - 展示了技术选型和设计模式
 
-这个架构设计体现了现代Web扩展开发的最佳实践，具有高度的模块化、可扩展性和可维护性。 
+这个架构设计体现了现代Web扩展开发的最佳实践，具有高度的模块化、可扩展性和可维护性。

@@ -1,16 +1,16 @@
 export type DrawingMode =
-  | 'select'
-  | 'pen'
-  | 'arrow'
-  | 'rectangle'
-  | 'circle'
-  | 'text'
-  | 'hand-drawn'
-  | 'line'
-  | 'eraser'
-  | 'highlighter'
-  | 'star'
-  | 'triangle';
+  | "select"
+  | "pen"
+  | "arrow"
+  | "rectangle"
+  | "circle"
+  | "text"
+  | "hand-drawn"
+  | "line"
+  | "eraser"
+  | "highlighter"
+  | "star"
+  | "triangle";
 
 export interface DrawingOptions {
   color: string;
@@ -23,7 +23,7 @@ export interface DrawingOptions {
   hasFill: boolean;
   fontFamily?: string;
   fontWeight?: string;
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: "left" | "center" | "right";
   lineDash?: number[];
   shadowColor?: string;
   shadowBlur?: number;
@@ -50,15 +50,15 @@ export interface DrawingObject {
 }
 
 export enum HandleType {
-  TOP_LEFT = 'top-left',
-  TOP_RIGHT = 'top-right',
-  BOTTOM_LEFT = 'bottom-left',
-  BOTTOM_RIGHT = 'bottom-right',
-  TOP = 'top',
-  BOTTOM = 'bottom',
-  LEFT = 'left',
-  RIGHT = 'right',
-  ROTATE = 'rotate'
+  TOP_LEFT = "top-left",
+  TOP_RIGHT = "top-right",
+  BOTTOM_LEFT = "bottom-left",
+  BOTTOM_RIGHT = "bottom-right",
+  TOP = "top",
+  BOTTOM = "bottom",
+  LEFT = "left",
+  RIGHT = "right",
+  ROTATE = "rotate",
 }
 
 export interface TransformHandle {

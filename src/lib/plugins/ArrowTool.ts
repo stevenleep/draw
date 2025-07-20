@@ -1,14 +1,14 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from "./ToolPlugin";
 
 export class ArrowTool extends ToolPlugin {
   constructor() {
     super(
-      'arrow',
-      'arrow' as DrawingMode,
+      "arrow",
+      "arrow" as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <path d="M2 16L16 2M16 2L16 9M16 2L9 2" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
-      '箭头工具 (快捷键: 2)'
+      "箭头工具 (快捷键: 2)",
     );
   }
 
@@ -23,7 +23,7 @@ export class ArrowTool extends ToolPlugin {
       startPoint: point,
       endPoint: point,
       options: { ...context.options },
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 }
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
     };
 
     return obj;
@@ -43,21 +43,23 @@ export class ArrowTool extends ToolPlugin {
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
     startObject.endPoint = { ...point };
     startObject.bounds = this.calculateBounds(startObject, context);
-    
+
     return startObject;
   }
 
   render(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
-    
+
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.fillStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity;
-    context.ctx.lineCap = 'round';
-    context.ctx.lineJoin = 'round';
+    context.ctx.lineCap = "round";
+    context.ctx.lineJoin = "round";
 
     if (obj.options.lineDash && obj.options.lineDash.length > 0) {
       context.ctx.setLineDash(obj.options.lineDash);
@@ -81,14 +83,16 @@ export class ArrowTool extends ToolPlugin {
   }
 
   private renderPreview(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.fillStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity * 0.7;
-    context.ctx.lineCap = 'round';
+    context.ctx.lineCap = "round";
 
     context.ctx.beginPath();
     context.ctx.moveTo(obj.startPoint.x, obj.startPoint.y);
@@ -104,8 +108,10 @@ export class ArrowTool extends ToolPlugin {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const length = Math.sqrt(dx * dx + dy * dy);
-    
-    if (length === 0) return;
+
+    if (length === 0) {
+      return;
+    }
 
     const arrowLength = Math.min(20, length / 3);
     const arrowWidth = arrowLength * 0.6;
@@ -115,17 +121,17 @@ export class ArrowTool extends ToolPlugin {
 
     const p1 = {
       x: end.x,
-      y: end.y
+      y: end.y,
     };
-    
+
     const p2 = {
       x: end.x - arrowLength * ux + arrowWidth * uy,
-      y: end.y - arrowLength * uy - arrowWidth * ux
+      y: end.y - arrowLength * uy - arrowWidth * ux,
     };
-    
+
     const p3 = {
       x: end.x - arrowLength * ux - arrowWidth * uy,
-      y: end.y - arrowLength * uy + arrowWidth * ux
+      y: end.y - arrowLength * uy + arrowWidth * ux,
     };
 
     context.ctx.beginPath();
@@ -137,13 +143,15 @@ export class ArrowTool extends ToolPlugin {
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
-    if (!obj.endPoint) return false;
+    if (!obj.endPoint) {
+      return false;
+    }
 
     const distance = this.distanceToLineSegment(point, obj.startPoint, obj.endPoint);
     return distance <= margin;
   }
 
-  calculateBounds(obj: DrawingObject, context: ToolContext): { x: number; y: number; width: number; height: number } {
+  calculateBounds(obj: DrawingObject, _context: ToolContext): { x: number; y: number; width: number; height: number } {
     if (!obj.endPoint) {
       return { x: obj.startPoint.x, y: obj.startPoint.y, width: 0, height: 0 };
     }
@@ -161,7 +169,7 @@ export class ArrowTool extends ToolPlugin {
       x: x1 - padding,
       y: y1 - padding,
       width: x2 - x1 + padding * 2,
-      height: y2 - y1 + padding * 2
+      height: y2 - y1 + padding * 2,
     };
   }
 
@@ -173,7 +181,7 @@ export class ArrowTool extends ToolPlugin {
 
     const dot = A * C + B * D;
     const lenSq = C * C + D * D;
-    
+
     if (lenSq === 0) {
       return Math.sqrt(A * A + B * B);
     }

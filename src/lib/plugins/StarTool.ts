@@ -1,12 +1,12 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from "./ToolPlugin";
 
 export class StarTool extends ToolPlugin {
   constructor() {
     super(
-      'star',
-      'star' as DrawingMode,
-      `<svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\"><polygon points=\"8,2 10,6 14,6.5 11,9.5 12,14 8,11.5 4,14 5,9.5 2,6.5 6,6\" fill=\"currentColor\"/></svg>`,
-      '五角星工具 (快捷键: 0)'
+      "star",
+      "star" as DrawingMode,
+      '<svg width="16" height="16" viewBox="0 0 16 16"><polygon points="8,2 10,6 14,6.5 11,9.5 12,14 8,11.5 4,14 5,9.5 2,6.5 6,6" fill="currentColor"/></svg>',
+      "五角星工具 (快捷键: 0)",
     );
   }
 
@@ -17,7 +17,7 @@ export class StarTool extends ToolPlugin {
       startPoint: point,
       endPoint: point,
       options: { ...context.options },
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 }
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
     };
   }
 
@@ -32,13 +32,13 @@ export class StarTool extends ToolPlugin {
     return startObject;
   }
 
-  finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
+  finishDrawing(point: Point, startObject: DrawingObject, _context: ToolContext): DrawingObject {
     startObject.endPoint = point;
     startObject.bounds = {
       x: Math.min(startObject.startPoint.x, point.x),
       y: Math.min(startObject.startPoint.y, point.y),
       width: Math.abs(point.x - startObject.startPoint.x),
-      height: Math.abs(point.y - startObject.startPoint.y)
+      height: Math.abs(point.y - startObject.startPoint.y),
     };
     return startObject;
   }
@@ -63,7 +63,7 @@ export class StarTool extends ToolPlugin {
     const spikes = 5;
     const outerRadius = Math.min(rx, ry);
     const innerRadius = outerRadius * 0.5;
-    let rot = Math.PI / 2 * 3;
+    let rot = (Math.PI / 2) * 3;
     let x = cx;
     let y = cy;
     ctx.beginPath();
@@ -84,29 +84,30 @@ export class StarTool extends ToolPlugin {
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 4): boolean {
     const { startPoint, endPoint } = obj;
-    if (!startPoint || !endPoint) return false;
+    if (!startPoint || !endPoint) {
+      return false;
+    }
     const x1 = Math.min(startPoint.x, endPoint.x);
     const y1 = Math.min(startPoint.y, endPoint.y);
     const x2 = Math.max(startPoint.x, endPoint.x);
     const y2 = Math.max(startPoint.y, endPoint.y);
-    return (
-      point.x >= x1 - margin && point.x <= x2 + margin &&
-      point.y >= y1 - margin && point.y <= y2 + margin
-    );
+    return point.x >= x1 - margin && point.x <= x2 + margin && point.y >= y1 - margin && point.y <= y2 + margin;
   }
 
-  calculateBounds(obj: DrawingObject, context: ToolContext) {
+  calculateBounds(obj: DrawingObject, _context: ToolContext) {
     const { startPoint, endPoint } = obj;
-    if (!startPoint || !endPoint) return { x: 0, y: 0, width: 0, height: 0 };
+    if (!startPoint || !endPoint) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
     return {
       x: Math.min(startPoint.x, endPoint.x),
       y: Math.min(startPoint.y, endPoint.y),
       width: Math.abs(endPoint.x - startPoint.x),
-      height: Math.abs(endPoint.y - startPoint.y)
+      height: Math.abs(endPoint.y - startPoint.y),
     };
   }
 
   get requiresDrag(): boolean {
     return true;
   }
-} 
+}

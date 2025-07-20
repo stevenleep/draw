@@ -1,16 +1,16 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext } from './ToolPlugin';
-import { PenTool } from './PenTool';
-import { RectangleTool } from './RectangleTool';
-import { CircleTool } from './CircleTool';
-import { TextTool } from './TextTool';
-import { ArrowTool } from './ArrowTool';
-import { LineTool } from './LineTool';
-import { HandDrawnTool } from './HandDrawnTool';
-import { EraserTool } from './EraserTool';
-import { HighlighterTool } from './HighlighterTool';
-import { StarTool } from './StarTool';
-import { TriangleTool } from './TriangleTool';
-import { SelectTool } from './SelectTool';
+import { ToolPlugin, Point, DrawingObject, ToolContext } from "./ToolPlugin";
+import { PenTool } from "./PenTool";
+import { RectangleTool } from "./RectangleTool";
+import { CircleTool } from "./CircleTool";
+import { TextTool } from "./TextTool";
+import { ArrowTool } from "./ArrowTool";
+import { LineTool } from "./LineTool";
+import { HandDrawnTool } from "./HandDrawnTool";
+import { EraserTool } from "./EraserTool";
+import { HighlighterTool } from "./HighlighterTool";
+import { StarTool } from "./StarTool";
+import { TriangleTool } from "./TriangleTool";
+import { SelectTool } from "./SelectTool";
 
 export class ToolManager {
   private tools: Map<string, ToolPlugin> = new Map();
@@ -37,13 +37,11 @@ export class ToolManager {
 
   public registerTool(tool: ToolPlugin): void {
     this.tools.set(tool.type, tool);
-    console.log(`🔧 Registered tool: ${tool.name} (${tool.type})`);
   }
 
   public unregisterTool(type: string): boolean {
     const success = this.tools.delete(type);
     if (success) {
-      console.log(`🗑️ Unregistered tool: ${type}`);
       if (this.currentTool && this.currentTool.type === type) {
         this.currentTool = null;
       }
@@ -55,10 +53,8 @@ export class ToolManager {
     const tool = this.tools.get(type);
     if (tool) {
       this.currentTool = tool;
-      console.log(`🎯 Switched to tool: ${tool.name}`);
       return true;
     }
-    console.warn(`⚠️ Tool not found: ${type}`);
     return false;
   }
 
@@ -80,19 +76,22 @@ export class ToolManager {
 
   public startDrawing(point: Point, context: ToolContext): DrawingObject | null {
     if (!this.currentTool) {
-      console.warn('⚠️ No current tool selected');
       return null;
     }
     return this.currentTool.startDrawing(point, context);
   }
 
   public continueDrawing(point: Point, startObject: DrawingObject, context: ToolContext): void {
-    if (!this.currentTool) return;
+    if (!this.currentTool) {
+      return;
+    }
     this.currentTool.continueDrawing(point, startObject, context);
   }
 
   public finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
-    if (!this.currentTool) return startObject;
+    if (!this.currentTool) {
+      return startObject;
+    }
     return this.currentTool.finishDrawing(point, startObject, context);
   }
 
@@ -100,8 +99,6 @@ export class ToolManager {
     const tool = this.getTool(obj.type);
     if (tool) {
       tool.render(obj, context);
-    } else {
-      console.warn(`⚠️ No tool found for object type: ${obj.type}`);
     }
   }
 
@@ -122,7 +119,9 @@ export class ToolManager {
   }
 
   public requiresDrag(): boolean {
-    if (!this.currentTool) return false;
+    if (!this.currentTool) {
+      return false;
+    }
     return this.currentTool.requiresDrag;
   }
 
@@ -133,12 +132,12 @@ export class ToolManager {
     title: string;
     requiresDrag: boolean;
   }> {
-    return this.getAllTools().map(tool => ({
+    return this.getAllTools().map((tool) => ({
       type: tool.type,
       name: tool.name,
       icon: tool.icon,
       title: tool.title,
-      requiresDrag: tool.requiresDrag
+      requiresDrag: tool.requiresDrag,
     }));
   }
 
@@ -153,6 +152,5 @@ export class ToolManager {
   public clearAllTools(): void {
     this.tools.clear();
     this.currentTool = null;
-    console.log('🗑️ All tools cleared');
   }
 }

@@ -242,25 +242,30 @@ src/
 ## 关键设计模式
 
 ### 1. 插件模式 (Plugin Pattern)
+
 - 所有工具都继承自 `ToolPlugin` 抽象类
 - 通过 `ToolManager` 统一管理工具注册和切换
 - 支持动态添加新工具
 
 ### 2. 观察者模式 (Observer Pattern)
+
 - 事件处理器监听用户交互
 - 状态变化时通知相关组件更新
 - 工具切换时更新UI状态
 
 ### 3. 状态管理模式 (State Management Pattern)
+
 - `DrawingState` 管理绘画对象状态
 - `TextEditingState` 管理文本编辑状态
 - 支持撤销/重做操作
 
 ### 4. 工厂模式 (Factory Pattern)
+
 - `ToolManager` 作为工具工厂
 - 统一创建和管理工具实例
 
 ### 5. 策略模式 (Strategy Pattern)
+
 - 不同工具实现不同的绘制策略
 - 运行时动态切换绘制策略
 
@@ -282,4 +287,4 @@ src/
    - 分层渲染减少重绘
    - 使用requestAnimationFrame优化动画
 
-这个架构设计展现了现代Web扩展开发的最佳实践，具有高度的模块化、可扩展性和可维护性。 
+这个架构设计展现了现代Web扩展开发的最佳实践，具有高度的模块化、可扩展性和可维护性。

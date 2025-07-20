@@ -1,14 +1,14 @@
-import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from './ToolPlugin';
+import { ToolPlugin, Point, DrawingObject, ToolContext, DrawingMode } from "./ToolPlugin";
 
 export class RectangleTool extends ToolPlugin {
   constructor() {
     super(
-      'rectangle',
-      'rectangle' as DrawingMode,
+      "rectangle",
+      "rectangle" as DrawingMode,
       `<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="2" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
       </svg>`,
-      '矩形工具 (快捷键: 3)'
+      "矩形工具 (快捷键: 3)",
     );
   }
 
@@ -23,7 +23,7 @@ export class RectangleTool extends ToolPlugin {
       startPoint: point,
       endPoint: point,
       options: { ...context.options },
-      bounds: { x: point.x, y: point.y, width: 0, height: 0 }
+      bounds: { x: point.x, y: point.y, width: 0, height: 0 },
     };
 
     return obj;
@@ -43,15 +43,17 @@ export class RectangleTool extends ToolPlugin {
   finishDrawing(point: Point, startObject: DrawingObject, context: ToolContext): DrawingObject {
     startObject.endPoint = { ...point };
     startObject.bounds = this.calculateBounds(startObject, context);
-    
+
     return startObject;
   }
 
   render(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
-    
+
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
     context.ctx.lineWidth = obj.options.strokeWidth;
     context.ctx.globalAlpha = obj.options.opacity;
@@ -81,7 +83,9 @@ export class RectangleTool extends ToolPlugin {
   }
 
   private renderPreview(obj: DrawingObject, context: ToolContext): void {
-    if (!obj.endPoint) return;
+    if (!obj.endPoint) {
+      return;
+    }
 
     context.ctx.save();
     context.ctx.strokeStyle = obj.options.strokeColor || obj.options.color;
@@ -96,20 +100,19 @@ export class RectangleTool extends ToolPlugin {
   }
 
   hitTest(point: Point, obj: DrawingObject, margin: number = 5): boolean {
-    if (!obj.endPoint) return false;
+    if (!obj.endPoint) {
+      return false;
+    }
 
     const x1 = Math.min(obj.startPoint.x, obj.endPoint.x);
     const y1 = Math.min(obj.startPoint.y, obj.endPoint.y);
     const x2 = Math.max(obj.startPoint.x, obj.endPoint.x);
     const y2 = Math.max(obj.startPoint.y, obj.endPoint.y);
 
-    return point.x >= x1 - margin && 
-           point.x <= x2 + margin &&
-           point.y >= y1 - margin && 
-           point.y <= y2 + margin;
+    return point.x >= x1 - margin && point.x <= x2 + margin && point.y >= y1 - margin && point.y <= y2 + margin;
   }
 
-  calculateBounds(obj: DrawingObject, context: ToolContext): { x: number; y: number; width: number; height: number } {
+  calculateBounds(obj: DrawingObject, _context: ToolContext): { x: number; y: number; width: number; height: number } {
     if (!obj.endPoint) {
       return { x: obj.startPoint.x, y: obj.startPoint.y, width: 0, height: 0 };
     }
@@ -126,7 +129,7 @@ export class RectangleTool extends ToolPlugin {
       x: x1 - padding,
       y: y1 - padding,
       width: x2 - x1 + strokeWidth,
-      height: y2 - y1 + strokeWidth
+      height: y2 - y1 + strokeWidth,
     };
   }
 }
